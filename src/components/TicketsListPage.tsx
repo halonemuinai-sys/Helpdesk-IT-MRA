@@ -5,7 +5,8 @@ import {
   RotateCw, Search, PenSquare, X, Save, Loader2, Calendar,
   MoreVertical, Star, CheckCircle2, AlertTriangle, List, 
   Clock, Users, Trash2, Check, Plus, FolderOpen, AlertCircle,
-  Filter, ChevronDown, RefreshCw
+  Filter, ChevronDown, RefreshCw, HardDrive, Code, Network,
+  Monitor, Mail, Printer, Settings, HelpCircle
 } from 'lucide-react';
 import { Badge, FormError, DatePickerPremium } from '@/components/PageShared';
 import Link from 'next/link';
@@ -37,8 +38,8 @@ interface DropdownItem {
   value: string;
 }
 
-function SlaProgressCircle({ status, value }: { status: string; value?: number }) {
-  if (status !== 'Achieved' && status !== 'Breached') {
+function SlaProgressCircle({ status, value, ticketStatus }: { status: string; value?: number; ticketStatus: string }) {
+  if (value === undefined) {
     return (
       <div className="w-8 h-8 rounded-full border border-border/80 flex items-center justify-center text-text-3 font-bold text-[10px]">
         —
@@ -46,8 +47,12 @@ function SlaProgressCircle({ status, value }: { status: string; value?: number }
     );
   }
 
-  const color = status === 'Achieved' ? 'stroke-emerald text-emerald' : 'stroke-rose text-rose';
-  const percentage = value || (status === 'Achieved' ? 100 : 0);
+  const isAchieved = status === 'Achieved' || (ticketStatus === 'In Progress');
+  const color = isAchieved
+    ? (ticketStatus === 'In Progress' ? 'stroke-blue text-blue' : 'stroke-emerald text-emerald')
+    : 'stroke-rose text-rose';
+
+  const percentage = value;
   const strokeDashoffset = 75.4 - (75.4 * percentage) / 100;
 
   return (
@@ -73,7 +78,7 @@ function SlaProgressCircle({ status, value }: { status: string; value?: number }
           strokeLinecap="round"
         />
       </svg>
-      <span className="absolute text-[8px] font-black text-text-2 leading-none">
+      <span className={`absolute text-[8px] font-black leading-none ${ticketStatus === 'In Progress' ? 'text-blue' : isAchieved ? 'text-emerald' : 'text-rose'}`}>
         {percentage}%
       </span>
     </div>
@@ -102,6 +107,45 @@ function getInitials(name: string): string {
   return name.substring(0, 2).toUpperCase();
 }
 
+function getCategoryIcon(category: string) {
+  const cat = (category || '').toLowerCase();
+  if (cat.includes('hard') || cat.includes('fisik')) {
+    return HardDrive;
+  }
+  if (cat.includes('soft') || cat.includes('os') || cat.includes('sistem')) {
+    return Code;
+  }
+  if (cat.includes('jar') || cat.includes('inter') || cat.includes('net') || cat.includes('wifi')) {
+    return Network;
+  }
+  if (cat.includes('retail') || cat.includes('pos')) {
+    return Monitor;
+  }
+  if (cat.includes('mail') || cat.includes('collaboration') || cat.includes('outlook') || cat.includes('email')) {
+    return Mail;
+  }
+  if (cat.includes('print') || cat.includes('scan')) {
+    return Printer;
+  }
+  if (cat.includes('main') || cat.includes('rutin')) {
+    return Settings;
+  }
+  return HelpCircle;
+}
+
+function formatIndonesianDate(dateStr: string) {
+  if (!dateStr) return '—';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const [year, month, day] = parts;
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+  ];
+  const monthIdx = parseInt(month, 10) - 1;
+  return `${parseInt(day, 10)} ${months[monthIdx] || month} ${year}`;
+}
+
 export default function TicketsListPage() {
   const [allTickets, setAllTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,6 +160,7 @@ export default function TicketsListPage() {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
   const [counts, setCounts] = useState<Record<string, number>>({
     all: 0, Open: 0, InProgress: 0, PendingVendor: 0, Resolved: 0, Closed: 0
@@ -570,112 +615,120 @@ export default function TicketsListPage() {
       </div>
 
       {/* 4. Search & Filter Area */}
-      <div className="card p-4 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Search box */}
-          <div className="relative flex items-center w-full max-w-md">
-            <Search className="absolute left-3.5 w-4 h-4 text-text-3" />
+          <div className="relative flex items-center flex-1 max-w-xl">
+            <Search className="absolute left-4 w-4 h-4 text-text-3" />
             <input
               type="text"
               placeholder="Cari ID, pelapor, lokasi, kategori, atau masalah..."
-              className="input-premium pl-10 pr-4 py-2.5 w-full text-xs bg-slate-50 dark:bg-slate-800/40 border-none focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-blue/40 rounded-full transition-all"
+              className="w-full pl-11 pr-4 py-2.5 text-xs bg-white dark:bg-slate-900 border border-border/80 dark:border-border/10 rounded-xl focus:ring-1 focus:ring-blue/40 shadow-sm transition-all outline-none text-slate-800 dark:text-slate-100"
               value={searchQuery}
               onChange={e => { setSearchQuery(e.target.value); setOffset(0); }}
             />
           </div>
 
           {/* Quick operations */}
-          <div className="flex items-center gap-2 self-end md:self-auto">
+          <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               type="button"
               onClick={fetchTicketsData}
               title="Muat Ulang"
-              className="btn p-2 rounded-full border border-border bg-surface hover:bg-surface-2 text-text-2 hover:text-blue shrink-0 flex items-center justify-center w-9 h-9 cursor-pointer"
+              className="btn p-2 rounded-xl border border-border bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-text-2 hover:text-blue shrink-0 flex items-center justify-center w-9 h-9 cursor-pointer shadow-sm"
             >
               <RotateCw size={14} className={loading ? 'animate-spin' : ''} />
             </button>
             <Link href="/tickets/calendar" className="no-underline shrink-0">
-              <span className="btn border border-border bg-surface hover:bg-surface-2 py-2 px-4 text-xs flex items-center gap-1.5 rounded-full font-bold cursor-pointer text-text-2">
-                <Calendar size={13} className="text-blue" /> Tampilan Kalender
+              <span className="btn border border-border bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 py-2.5 px-4 text-xs flex items-center gap-1.5 rounded-xl font-bold cursor-pointer text-slate-700 dark:text-slate-200 shadow-sm">
+                <Calendar size={14} className="text-blue" /> Tampilan Kalender
               </span>
             </Link>
+            <button
+              onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+              className="btn border border-border bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 py-2.5 px-4 text-xs flex items-center gap-1.5 rounded-xl font-bold cursor-pointer text-slate-700 dark:text-slate-200 shadow-sm shrink-0"
+            >
+              <Filter size={14} className="text-blue" /> Filter
+            </button>
           </div>
         </div>
 
         {/* Dropdown Filters Line */}
-        <div className="flex items-center gap-3 flex-wrap border-t border-border/40 pt-3 text-xs">
-          <div className="flex items-center gap-1 text-text-3 font-extrabold text-[10px] uppercase tracking-wider">
-            <Filter size={12} /> Filter:
-          </div>
+        {isFilterExpanded && (
+          <div className="flex items-center gap-3 flex-wrap bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 rounded-2xl p-3.5 text-xs animate-slide-down shadow-sm">
+            <div className="flex items-center gap-1 text-text-3 font-extrabold text-[10px] uppercase tracking-wider">
+              <Filter size={12} /> Filter Chip:
+            </div>
 
-          {/* Priority dropdown chip */}
-          <div className="relative flex items-center gap-1 bg-slate-50 dark:bg-slate-800/40 border border-border/60 dark:border-border/10 rounded-full px-3 py-1 cursor-pointer">
-            <span className="text-[10px] font-bold text-text-3">Prioritas:</span>
-            <select
-              title="Filter Prioritas"
-              className="bg-transparent border-none py-0 text-xs font-bold text-text cursor-pointer outline-none focus:ring-0 w-auto pr-0"
-              style={{ backgroundImage: 'none', paddingRight: '2px' }}
-              value={priorityFilter}
-              onChange={e => { setPriorityFilter(e.target.value); setOffset(0); }}
-            >
-              <option value="all">Semua</option>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Critical">Critical</option>
-            </select>
-          </div>
+            {/* Priority dropdown chip */}
+            <div className="relative flex items-center gap-1 bg-slate-50 dark:bg-slate-800/40 border border-border/60 dark:border-border/10 rounded-full px-3 py-1 cursor-pointer">
+              <span className="text-[10px] font-bold text-text-3">Prioritas:</span>
+              <select
+                title="Filter Prioritas"
+                className="bg-transparent border-none py-0 text-xs font-bold text-text cursor-pointer outline-none focus:ring-0 w-auto pr-0"
+                style={{ backgroundImage: 'none', paddingRight: '2px' }}
+                value={priorityFilter}
+                onChange={e => { setPriorityFilter(e.target.value); setOffset(0); }}
+              >
+                <option value="all">Semua</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </div>
 
-          {/* Category dropdown chip */}
-          <div className="relative flex items-center gap-1 bg-slate-50 dark:bg-slate-800/40 border border-border/60 dark:border-border/10 rounded-full px-3 py-1 cursor-pointer">
-            <span className="text-[10px] font-bold text-text-3">Kategori:</span>
-            <select
-              title="Filter Kategori"
-              className="bg-transparent border-none py-0 text-xs font-bold text-text cursor-pointer outline-none focus:ring-0 w-auto pr-0"
-              style={{ backgroundImage: 'none', paddingRight: '2px' }}
-              value={categoryFilter}
-              onChange={e => { setCategoryFilter(e.target.value); setOffset(0); }}
-            >
-              <option value="all">Semua</option>
-              {uniqueCategories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
+            {/* Category dropdown chip */}
+            <div className="relative flex items-center gap-1 bg-slate-50 dark:bg-slate-800/40 border border-border/60 dark:border-border/10 rounded-full px-3 py-1 cursor-pointer">
+              <span className="text-[10px] font-bold text-text-3">Kategori:</span>
+              <select
+                title="Filter Kategori"
+                className="bg-transparent border-none py-0 text-xs font-bold text-text cursor-pointer outline-none focus:ring-0 w-auto pr-0"
+                style={{ backgroundImage: 'none', paddingRight: '2px' }}
+                value={categoryFilter}
+                onChange={e => { setCategoryFilter(e.target.value); setOffset(0); }}
+              >
+                <option value="all">Semua</option>
+                {uniqueCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
 
-          {/* Location dropdown chip */}
-          <div className="relative flex items-center gap-1 bg-slate-50 dark:bg-slate-800/40 border border-border/60 dark:border-border/10 rounded-full px-3 py-1 cursor-pointer">
-            <span className="text-[10px] font-bold text-text-3">Lokasi:</span>
-            <select
-              title="Filter Lokasi"
-              className="bg-transparent border-none py-0 text-xs font-bold text-text cursor-pointer outline-none focus:ring-0 w-auto pr-0"
-              style={{ backgroundImage: 'none', paddingRight: '2px' }}
-              value={locationFilter}
-              onChange={e => { setLocationFilter(e.target.value); setOffset(0); }}
-            >
-              <option value="all">Semua</option>
-              {uniqueLocations.map(loc => (
-                <option key={loc} value={loc}>{loc}</option>
-              ))}
-            </select>
-          </div>
+            {/* Location dropdown chip */}
+            <div className="relative flex items-center gap-1 bg-slate-50 dark:bg-slate-800/40 border border-border/60 dark:border-border/10 rounded-full px-3 py-1 cursor-pointer">
+              <span className="text-[10px] font-bold text-text-3">Lokasi:</span>
+              <select
+                title="Filter Lokasi"
+                className="bg-transparent border-none py-0 text-xs font-bold text-text cursor-pointer outline-none focus:ring-0 w-auto pr-0"
+                style={{ backgroundImage: 'none', paddingRight: '2px' }}
+                value={locationFilter}
+                onChange={e => { setLocationFilter(e.target.value); setOffset(0); }}
+              >
+                <option value="all">Semua</option>
+                {uniqueLocations.map(loc => (
+                  <option key={loc} value={loc}>{loc}</option>
+                ))}
+              </select>
+            </div>
 
-          {/* Reset Filters button */}
-          {(priorityFilter !== 'all' || categoryFilter !== 'all' || locationFilter !== 'all' || searchQuery.trim() !== '') && (
-            <button
-              onClick={() => {
-                setPriorityFilter('all');
-                setCategoryFilter('all');
-                setLocationFilter('all');
-                setSearchQuery('');
-                setOffset(0);
-              }}
-              className="text-xxs font-black text-rose hover:text-rose-d border-none bg-transparent cursor-pointer ml-auto uppercase tracking-wider flex items-center gap-1"
-            >
-              Reset Filter
-            </button>
-          )}
-        </div>
+            {/* Reset Filters button */}
+            {(priorityFilter !== 'all' || categoryFilter !== 'all' || locationFilter !== 'all' || searchQuery.trim() !== '') && (
+              <button
+                onClick={() => {
+                  setPriorityFilter('all');
+                  setCategoryFilter('all');
+                  setLocationFilter('all');
+                  setSearchQuery('');
+                  setOffset(0);
+                }}
+                className="text-xxs font-black text-rose hover:text-rose-d border-none bg-transparent cursor-pointer ml-auto uppercase tracking-wider flex items-center gap-1"
+              >
+                Reset Filter
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 5. Bulk Actions Slide-Down Bar */}
@@ -723,7 +776,7 @@ export default function TicketsListPage() {
         <div className="min-w-[1050px] space-y-3 pb-6">
           
           {/* Card Table Header */}
-          <div className="grid grid-cols-[40px_35px_1.5fr_1.2fr_1fr_0.8fr_0.8fr_0.8fr_1fr_50px] gap-4 px-6 py-2.5 text-[10px] font-extrabold text-text-3 uppercase tracking-wider border-b border-border/40">
+          <div className="grid grid-cols-[40px_35px_1.5fr_1.2fr_1fr_0.8fr_0.8fr_0.8fr_1fr_50px] gap-4 px-6 py-2.5 text-[10px] font-extrabold text-text-3 uppercase tracking-wider">
             <div className="flex items-center">
               <input 
                 type="checkbox" 
@@ -803,8 +856,8 @@ export default function TicketsListPage() {
 
                   {/* ID & Title */}
                   <div className="min-w-0 pr-2">
-                    <div className="font-bold text-text-2 text-[10px] font-mono leading-none mb-1">{t.id}</div>
-                    <div className="font-black text-xs text-slate-850 dark:text-slate-100 truncate" title={t.issueTitle}>
+                    <div className="font-semibold text-text-3 text-[10px] font-mono leading-none mb-1">{t.id}</div>
+                    <div className="font-bold text-xs text-slate-800 dark:text-slate-100 truncate" title={t.issueTitle}>
                       {t.issueTitle}
                     </div>
                   </div>
@@ -815,13 +868,21 @@ export default function TicketsListPage() {
                       {initials}
                     </div>
                     <div className="min-w-0">
-                      <div className="font-black text-slate-800 dark:text-slate-100 text-xs truncate leading-snug">{t.reporterName}</div>
+                      <div className="font-bold text-slate-800 dark:text-slate-100 text-xs truncate leading-snug">{t.reporterName}</div>
                       <div className="text-[9.5px] text-text-3 font-semibold truncate mt-0.5" title={t.location}>{t.location}</div>
                     </div>
                   </div>
 
                   {/* Category */}
-                  <div className="text-xs font-semibold text-text-2 truncate">{t.category}</div>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {(() => {
+                      const CategoryIcon = getCategoryIcon(t.category);
+                      return <CategoryIcon size={14} className="text-text-3 shrink-0" />;
+                    })()}
+                    <span className="text-xs font-semibold text-text-2 truncate" title={t.category}>
+                      {t.category}
+                    </span>
+                  </div>
 
                   {/* Priority badge */}
                   <div>
@@ -835,15 +896,27 @@ export default function TicketsListPage() {
 
                   {/* SLA progress circle */}
                   <div>
-                    <SlaProgressCircle 
-                      status={t.slaStatus} 
-                      value={t.slaStatus === 'Achieved' ? 100 : t.slaStatus === 'Breached' ? 0 : undefined} 
-                    />
+                    {(() => {
+                      const slaValue = t.status === 'In Progress' 
+                        ? 50 
+                        : t.slaStatus === 'Achieved' 
+                          ? 100 
+                          : t.slaStatus === 'Breached' 
+                            ? 0 
+                            : undefined;
+                      return (
+                        <SlaProgressCircle 
+                          status={t.slaStatus} 
+                          value={slaValue} 
+                          ticketStatus={t.status}
+                        />
+                      );
+                    })()}
                   </div>
 
                   {/* Waktu Lapor */}
                   <div>
-                    <div className="font-bold text-text-2 text-xxs leading-snug">{t.ticketDate}</div>
+                    <div className="font-bold text-text-2 text-xxs leading-snug">{formatIndonesianDate(t.ticketDate)}</div>
                     <div className="text-[9px] text-text-3 font-semibold mt-0.5 leading-none">{t.ticketTime}</div>
                   </div>
 
@@ -904,29 +977,54 @@ export default function TicketsListPage() {
       </div>
 
       {/* 7. Pagination Panel */}
-      {totalCount > 0 && (
-        <div className="flex items-center justify-between py-4 bg-white border border-border/70 rounded-2xl px-6 shadow-sm">
-          <p className="text-[10px] text-text-3 font-extrabold uppercase tracking-wider">
-            Menampilkan <b className="text-text">{Math.min(filteredTickets.length, offset + 1)}–{Math.min(filteredTickets.length, offset + limit)}</b> dari <b className="text-text">{totalCount}</b> tiket
-          </p>
-          <div className="flex gap-2">
-            <button
-              disabled={offset === 0}
-              onClick={() => setOffset(prev => Math.max(0, prev - limit))}
-              className="px-4 py-2 border border-border rounded-lg bg-surface text-xxs font-extrabold text-text-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-2 cursor-pointer shadow-sm"
-            >
-              Sebelumnya
-            </button>
-            <button
-              disabled={offset + limit >= totalCount}
-              onClick={() => setOffset(prev => prev + limit)}
-              className="px-4 py-2 border border-border rounded-lg bg-surface text-xxs font-extrabold text-text-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-2 cursor-pointer shadow-sm"
-            >
-              Berikutnya
-            </button>
+      {totalCount > 0 && (() => {
+        const currentPage = Math.floor(offset / limit) + 1;
+        const totalPages = Math.ceil(totalCount / limit);
+        const pageNumbers = [];
+        for (let i = 1; i <= totalPages; i++) {
+          pageNumbers.push(i);
+        }
+
+        return (
+          <div className="flex items-center justify-between py-4 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 rounded-2xl px-6 shadow-sm text-xs font-semibold text-text-2">
+            <p className="text-[10px] text-text-3 font-extrabold uppercase tracking-wider">
+              Menampilkan <b className="text-text">{Math.min(filteredTickets.length, offset + 1)}–{Math.min(filteredTickets.length, offset + limit)}</b> dari <b className="text-text">{totalCount}</b> tiket
+            </p>
+            <div className="flex gap-1 items-center">
+              <button
+                disabled={offset === 0}
+                onClick={() => setOffset(prev => Math.max(0, prev - limit))}
+                className="px-3.5 py-1.5 border border-border rounded-lg bg-white dark:bg-slate-900 text-xxs font-extrabold text-slate-700 dark:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-sm"
+              >
+                Sebelumnya
+              </button>
+              {pageNumbers.map(pageNo => {
+                const isActivePage = pageNo === currentPage;
+                return (
+                  <button
+                    key={pageNo}
+                    onClick={() => setOffset((pageNo - 1) * limit)}
+                    className={`px-3 py-1.5 rounded-lg text-xxs font-extrabold cursor-pointer transition-all shadow-sm ${
+                      isActivePage 
+                        ? 'bg-blue text-white border border-blue' 
+                        : 'bg-white dark:bg-slate-900 border border-border text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {pageNo}
+                  </button>
+                );
+              })}
+              <button
+                disabled={offset + limit >= totalCount}
+                onClick={() => setOffset(prev => prev + limit)}
+                className="px-3.5 py-1.5 border border-border rounded-lg bg-white dark:bg-slate-900 text-xxs font-extrabold text-slate-700 dark:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-sm"
+              >
+                Berikutnya
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 8. Bottom KPI Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
