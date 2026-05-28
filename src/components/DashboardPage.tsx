@@ -171,12 +171,12 @@ export default function DashboardPage() {
 
       {isMounted && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="card bg-white dark:bg-slate-900">
+          <div className="card bg-white dark:bg-slate-900 min-w-0">
             <h4 className="font-bold text-slate-700 dark:text-slate-350 text-xs mb-4 flex items-center gap-2">
               <MapPin size={14} className="text-blue" /> Tiket per Lokasi
             </h4>
-            <div className="h-60 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-60 w-full relative min-w-0">
+              <ResponsiveContainer width="99%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart data={locationChartData} layout="vertical" margin={{ left: -10, right: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
                   <XAxis type="number" stroke="var(--text-3)" fontSize={10} tickLine={false} />
@@ -191,15 +191,15 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="card bg-white dark:bg-slate-900">
+          <div className="card bg-white dark:bg-slate-900 min-w-0">
             <h4 className="font-bold text-slate-700 dark:text-slate-350 text-xs mb-4 flex items-center gap-2">
               <ClipboardCheck size={14} className="text-blue" /> Tiket per Kategori
             </h4>
-            <div className="h-60 w-full flex items-center justify-center">
+            <div className="h-60 w-full relative min-w-0 flex items-center justify-center">
               {categoryChartData.length === 0 ? (
                 <div className="text-xs text-text-3">Belum ada data</div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height="100%" minWidth={1} minHeight={1}>
                   <PieChart>
                     <Pie
                       data={categoryChartData}
@@ -222,15 +222,15 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="card bg-white dark:bg-slate-900">
+          <div className="card bg-white dark:bg-slate-900 min-w-0">
             <h4 className="font-bold text-slate-700 dark:text-slate-350 text-xs mb-4 flex items-center gap-2">
               <Target size={14} className="text-blue" /> SLA Status Summary
             </h4>
-            <div className="h-60 w-full flex items-center justify-center">
+            <div className="h-60 w-full relative min-w-0 flex items-center justify-center">
               {slaChartData.length === 0 ? (
                 <div className="text-xs text-text-3">Belum ada data</div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height="100%" minWidth={1} minHeight={1}>
                   <PieChart>
                     <Pie
                       data={slaChartData}

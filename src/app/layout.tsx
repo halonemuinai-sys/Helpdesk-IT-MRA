@@ -132,8 +132,12 @@ function Shell({ children }: { children: React.ReactNode }) {
         </button>
 
         <div className="sidebar-logo">
-          <div className="w-8 h-8 rounded-lg bg-blue flex items-center justify-center text-white font-black text-sm shrink-0">M</div>
-          <div className="overflow-hidden whitespace-nowrap">
+          <img 
+            src="/logo-mra.png" 
+            alt="MRA Logo" 
+            className="w-8 h-8 object-contain shrink-0"
+          />
+          <div className="sidebar-logo-text overflow-hidden whitespace-nowrap">
             <p className="text-sm font-black tracking-tight text-text leading-tight">
               MRA Helpdesk
             </p>
@@ -164,7 +168,7 @@ function Shell({ children }: { children: React.ReactNode }) {
                           <item.icon size={16} className={`shrink-0 ${active ? 'text-blue' : 'text-text-3'}`} />
                         </div>
                         <span className="sidebar-label flex-1">{item.label}</span>
-                        {active && <ChevronRight size={13} className="text-blue shrink-0 opacity-60" />}
+                        {active && <ChevronRight size={13} className="active-chevron text-blue shrink-0" />}
                       </div>
                     </Link>
                     {isCollapsed && <div className="flyout-label">{item.label}</div>}

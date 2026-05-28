@@ -17,6 +17,43 @@
   --spacing-30:   7.5rem;
   --spacing-40:   10rem;
   --spacing-50:   12.5rem;
+
+  /* Custom Color Palette mappings for Tailwind utility classes */
+  --color-bg:              var(--bg);
+  --color-bg-alt:          var(--bg-alt);
+  --color-surface:         var(--surface);
+  --color-surface-2:       var(--surface-2);
+  --color-border:          var(--border);
+  --color-border-2:        var(--border-2);
+  --color-border-subtle:   var(--border-subtle);
+
+  --color-text:            var(--text);
+  --color-text-2:          var(--text-2);
+  --color-text-3:          var(--text-3);
+
+  --color-blue:            var(--blue);
+  --color-blue-d:          var(--blue-d);
+  --color-blue-light:      var(--blue-light);
+  --color-blue-border:     var(--blue-border);
+  --color-blue-glow:       var(--blue-glow);
+
+  --color-indigo:          var(--indigo);
+  --color-indigo-light:    var(--indigo-light);
+
+  --color-emerald:         var(--emerald);
+  --color-emerald-light:   var(--emerald-light);
+  --color-emerald-border:  var(--emerald-border);
+  --color-emerald-glow:    var(--emerald-glow);
+
+  --color-amber:           var(--amber);
+  --color-amber-light:     var(--amber-light);
+  --color-amber-border:    var(--amber-border);
+  --color-amber-glow:      var(--amber-glow);
+
+  --color-rose:            var(--rose);
+  --color-rose-light:      var(--rose-light);
+  --color-rose-border:     var(--rose-border);
+  --color-rose-glow:       var(--rose-glow);
 }
 
 :root {
@@ -144,7 +181,7 @@ body {
 }
 
 /* ── Smooth Collapse Transitions for Text ── */
-.sidebar .sidebar-logo > div,
+.sidebar .sidebar-logo-text,
 .sidebar .sidebar-label,
 .sidebar .sidebar-menu p,
 .sidebar .sidebar-footer p,
@@ -162,7 +199,7 @@ body {
   vertical-align: middle;
 }
 
-.sidebar .sidebar-logo > div {
+.sidebar .sidebar-logo-text {
   display: flex;
   flex-direction: column;
 }
@@ -171,7 +208,7 @@ body {
   display: block;
 }
 
-.sidebar.collapsed .sidebar-logo > div,
+.sidebar.collapsed .sidebar-logo-text,
 .sidebar.collapsed .sidebar-label,
 .sidebar.collapsed .sidebar-footer p,
 .sidebar.collapsed .theme-toggle-pill span {
