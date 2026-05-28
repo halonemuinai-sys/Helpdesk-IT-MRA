@@ -1,34 +1,24 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 
 interface ThemeCtx { dark: boolean; toggle: () => void; }
 
 const Ctx = createContext<ThemeCtx>({ dark: false, toggle: () => {} });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [dark, setDark] = useState(false);
-
   useEffect(() => {
-    const saved = localStorage.getItem('mra-theme');
-    if (saved === 'dark') {
-      setDark(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    // Force light mode on mount
+    document.documentElement.classList.remove('dark');
+    localStorage.setItem('mra-theme', 'light');
   }, []);
 
   const toggle = () => {
-    setDark(prev => {
-      const next = !prev;
-      document.documentElement.classList.toggle('dark', next);
-      localStorage.setItem('mra-theme', next ? 'dark' : 'light');
-      return next;
-    });
+    // No-op to prevent toggling to dark mode
   };
 
-  return <Ctx.Provider value={{ dark, toggle }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ dark: false, toggle }}>{children}</Ctx.Provider>;
 }
 
 export const useTheme = () => useContext(Ctx);
+

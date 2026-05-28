@@ -4,9 +4,10 @@ import { useEffect, useState, useRef } from 'react';
 import { 
   RotateCw, Search, PenSquare, X, Save, Loader2, Calendar,
   MoreVertical, Star, CheckCircle2, AlertTriangle, List, 
-  Clock, Users, Trash2, Check, Plus, FolderOpen, AlertCircle
+  Clock, Users, Trash2, Check, Plus, FolderOpen, AlertCircle,
+  Filter, ChevronDown, RefreshCw
 } from 'lucide-react';
-import { Badge, FormError, TableShell, DatePickerPremium } from '@/components/PageShared';
+import { Badge, FormError, DatePickerPremium } from '@/components/PageShared';
 import Link from 'next/link';
 
 interface Ticket {
@@ -35,13 +36,83 @@ interface DropdownItem {
   value: string;
 }
 
+function SlaProgressCircle({ status, value }: { status: string; value?: number }) {
+  if (status !== 'Achieved' && status !== 'Breached') {
+    return (
+      <div className="w-8 h-8 rounded-full border border-border/80 flex items-center justify-center text-text-3 font-bold text-[10px]">
+        —
+      </div>
+    );
+  }
+
+  const color = status === 'Achieved' ? 'stroke-emerald text-emerald' : 'stroke-rose text-rose';
+  const percentage = value || (status === 'Achieved' ? 100 : 0);
+  const strokeDashoffset = 75.4 - (75.4 * percentage) / 100;
+
+  return (
+    <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
+      <svg className="w-8 h-8 transform -rotate-90">
+        <circle
+          cx="16"
+          cy="16"
+          r="12"
+          className="stroke-slate-100 dark:stroke-slate-800/40"
+          strokeWidth="2.5"
+          fill="transparent"
+        />
+        <circle
+          cx="16"
+          cy="16"
+          r="12"
+          className={color}
+          strokeWidth="2.5"
+          fill="transparent"
+          strokeDasharray="75.4"
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+        />
+      </svg>
+      <span className="absolute text-[8px] font-black text-text-2 leading-none">
+        {percentage}%
+      </span>
+    </div>
+  );
+}
+
+function getAvatarBgColor(name: string): string {
+  if (!name) return 'bg-slate-100 text-slate-500';
+  const charCode = name.charCodeAt(0) + (name.charCodeAt(1) || 0);
+  const colors = [
+    'bg-blue-light text-blue dark:bg-blue/15 dark:text-blue-d',
+    'bg-emerald-light text-emerald dark:bg-emerald/15 dark:text-emerald',
+    'bg-amber-light text-amber dark:bg-amber/15 dark:text-amber',
+    'bg-rose-light text-rose dark:bg-rose/15 dark:text-rose',
+    'bg-indigo-light text-indigo dark:bg-indigo/15 dark:text-indigo'
+  ];
+  return colors[charCode % colors.length];
+}
+
+function getInitials(name: string): string {
+  if (!name) return 'IT';
+  const parts = name.split(' ');
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
 export default function TicketsListPage() {
   const [allTickets, setAllTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeNav, setActiveNav] = useState('all'); // 'all' | 'starred' | 'active' | 'completed' | 'breached'
-  const [limit, setLimit] = useState(50);
+  const [limit, setLimit] = useState(25);
   const [offset, setOffset] = useState(0);
+
+  // Additional fine filters
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [locationFilter, setLocationFilter] = useState('all');
 
   const [counts, setCounts] = useState<Record<string, number>>({
     all: 0, Open: 0, InProgress: 0, PendingVendor: 0, Resolved: 0, Closed: 0
@@ -411,7 +482,7 @@ export default function TicketsListPage() {
     // 2. Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      return (
+      const matchSearch = (
         t.id.toLowerCase().includes(q) ||
         t.reporterName.toLowerCase().includes(q) ||
         t.location.toLowerCase().includes(q) ||
@@ -419,7 +490,17 @@ export default function TicketsListPage() {
         t.issueTitle.toLowerCase().includes(q) ||
         t.description.toLowerCase().includes(q)
       );
+      if (!matchSearch) return false;
     }
+
+    // 3. Priority filter
+    if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
+
+    // 4. Category filter
+    if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+
+    // 5. Location filter
+    if (locationFilter !== 'all' && !t.location.toLowerCase().includes(locationFilter.toLowerCase())) return false;
 
     return true;
   });
@@ -456,342 +537,485 @@ export default function TicketsListPage() {
 
   const navItems = [
     { id: 'all', label: 'Semua Tiket', icon: List, count: allTickets.length },
-    { id: 'starred', label: 'Berbintang', icon: Star, count: allTickets.filter(t => starredTickets.has(t.id)).length, colorClass: 'text-amber font-black fill-amber' },
+    { id: 'starred', label: 'Berbintang', icon: Star, count: allTickets.filter(t => starredTickets.has(t.id)).length, colorClass: 'text-amber fill-amber' },
     { id: 'active', label: 'Tiket Aktif', icon: Clock, count: allTickets.filter(t => ['Open', 'In Progress', 'Pending Vendor'].includes(t.status)).length },
     { id: 'completed', label: 'Terselesaikan', icon: CheckCircle2, count: allTickets.filter(t => ['Resolved', 'Closed'].includes(t.status)).length },
-    { id: 'breached', label: 'SLA Breached', icon: AlertTriangle, count: allTickets.filter(t => t.slaStatus === 'Breached').length, colorClass: 'text-rose font-black' },
+    { id: 'breached', label: 'SLA Breached', icon: AlertTriangle, count: allTickets.filter(t => t.slaStatus === 'Breached').length, colorClass: 'text-rose' },
   ];
 
+  // Extract unique categories & locations for dropdown filter chips
+  const uniqueCategories = Array.from(new Set(allTickets.map(t => t.category))).filter(Boolean);
+  const uniqueLocations = Array.from(new Set(allTickets.map(t => {
+    const parts = t.location.split(' ');
+    return parts[0] || t.location;
+  }))).filter(Boolean);
+
+  const activeTicketsCount = counts.Open + counts.InProgress + counts.PendingVendor;
+  const slaBreachedCount = allTickets.filter(t => t.slaStatus === 'Breached').length;
+
   return (
-    <div className="container space-y-4">
-      {/* Header Panel */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2 border-b border-border/70 pb-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      
+      {/* 1. Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2 border-b border-border/60 pb-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight leading-tight flex items-center gap-2">
             IT Helpdesk Ticket Registry
           </h1>
-          <p className="text-xs text-text-3">Kelola dan pantau status antrean gangguan IT MRA Group</p>
+          <p className="text-xs text-text-3 font-semibold mt-1">
+            Kelola dan pantau status antrean gangguan IT MRA Group dengan performa SLA premium.
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/input" className="no-underline">
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue hover:bg-blue-d text-white text-xs font-bold rounded-full shadow-md transition-all cursor-pointer">
-              <Plus size={15} /> Lapor Gangguan Baru
+      </div>
+
+      {/* 2. KPI Cards Dashboard (Top) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Total Tickets */}
+        <div className="card p-4.5 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-blue-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Total Tiket</span>
+            <span className="text-2.5xl font-black text-slate-850 dark:text-slate-100">{counts.all}</span>
+            <span className="text-[10px] text-text-3 font-medium block">Semua tiket masuk</span>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-blue-light dark:bg-blue/10 text-blue flex items-center justify-center shrink-0 shadow-sm">
+            <List size={18} />
+          </div>
+        </div>
+
+        {/* Active Ticket */}
+        <div className="card p-4.5 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-amber-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Tiket Aktif</span>
+            <span className="text-2.5xl font-black text-amber">{activeTicketsCount}</span>
+            <span className="text-[10px] text-text-3 font-medium block">Sedang diproses</span>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-amber-light dark:bg-amber/10 text-amber flex items-center justify-center shrink-0 shadow-sm">
+            <Clock size={18} />
+          </div>
+        </div>
+
+        {/* Resolved */}
+        <div className="card p-4.5 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-emerald-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Terselesaikan</span>
+            <span className="text-2.5xl font-black text-emerald">{counts.Resolved + counts.Closed}</span>
+            <span className="text-[10px] text-text-3 font-medium block">Penyelesaian sukses</span>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-emerald-light dark:bg-emerald/10 text-emerald flex items-center justify-center shrink-0 shadow-sm">
+            <CheckCircle2 size={18} />
+          </div>
+        </div>
+
+        {/* SLA Breached */}
+        <div className="card p-4.5 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-rose-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">SLA Breached</span>
+            <span className="text-2.5xl font-black text-rose">{slaBreachedCount}</span>
+            <span className="text-[10px] text-text-3 font-medium block">Butuh perhatian</span>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-rose-light dark:bg-rose/10 text-rose flex items-center justify-center shrink-0 shadow-sm">
+            <AlertTriangle size={18} />
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Ticket Filter Navigation Segmented Tabs (Horizontal) */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-1 pb-3 border-b border-border/50">
+        {/* Horizontal Navigation Pills */}
+        <div className="flex items-center bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl gap-0.5 self-start overflow-x-auto max-w-full">
+          {navItems.map(item => {
+            const active = activeNav === item.id;
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => { setActiveNav(item.id); setOffset(0); setSelectedIds(new Set()); }}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all border-none cursor-pointer shrink-0 ${
+                  active 
+                    ? 'bg-white dark:bg-slate-800 text-blue shadow-sm' 
+                    : 'text-text-2 hover:text-text bg-transparent'
+                }`}
+              >
+                <Icon size={14} className={active ? 'text-blue' : item.colorClass || 'text-text-3'} />
+                <span>{item.label}</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black leading-none ${
+                  active ? 'bg-blue text-white' : 'bg-slate-200 dark:bg-slate-800 text-text-3'
+                }`}>
+                  {item.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Primary CTA + Lapor Gangguan Baru */}
+        <Link href="/input" className="no-underline">
+          <button className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue to-indigo hover:from-blue-d hover:to-indigo text-white text-xs font-extrabold rounded-full shadow-premium hover:shadow-hover hover:-translate-y-0.5 transition-all border-none cursor-pointer">
+            <Plus size={16} /> Lapor Gangguan Baru
+          </button>
+        </Link>
+      </div>
+
+      {/* 4. Search & Filter Area */}
+      <div className="card p-4 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 space-y-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Search box */}
+          <div className="relative flex items-center w-full max-w-md">
+            <Search className="absolute left-3.5 w-4 h-4 text-text-3" />
+            <input
+              type="text"
+              placeholder="Cari ID, pelapor, lokasi, kategori, atau masalah..."
+              className="input-premium pl-10 pr-4 py-2.5 w-full text-xs bg-slate-50 dark:bg-slate-800/40 border-none focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-blue/40 rounded-full transition-all"
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setOffset(0); }}
+            />
+          </div>
+
+          {/* Quick operations */}
+          <div className="flex items-center gap-2 self-end md:self-auto">
+            <button
+              type="button"
+              onClick={fetchTicketsData}
+              title="Muat Ulang"
+              className="btn p-2 rounded-full border border-border bg-surface hover:bg-surface-2 text-text-2 hover:text-blue shrink-0 flex items-center justify-center w-9 h-9 cursor-pointer"
+            >
+              <RotateCw size={14} className={loading ? 'animate-spin' : ''} />
             </button>
-          </Link>
+            <Link href="/tickets/calendar" className="no-underline shrink-0">
+              <span className="btn border border-border bg-surface hover:bg-surface-2 py-2 px-4 text-xs flex items-center gap-1.5 rounded-full font-bold cursor-pointer text-text-2">
+                <Calendar size={13} className="text-blue" /> Tampilan Kalender
+              </span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Dropdown Filters Line */}
+        <div className="flex items-center gap-3 flex-wrap border-t border-border/40 pt-3 text-xs">
+          <div className="flex items-center gap-1 text-text-3 font-extrabold text-[10px] uppercase tracking-wider">
+            <Filter size={12} /> Filter:
+          </div>
+
+          {/* Priority dropdown chip */}
+          <div className="relative flex items-center gap-1 bg-slate-50 dark:bg-slate-800/40 border border-border/60 dark:border-border/10 rounded-full px-3 py-1 cursor-pointer">
+            <span className="text-[10px] font-bold text-text-3">Prioritas:</span>
+            <select
+              title="Filter Prioritas"
+              className="bg-transparent border-none py-0 text-xs font-bold text-text cursor-pointer outline-none focus:ring-0 w-auto pr-0"
+              style={{ backgroundImage: 'none', paddingRight: '2px' }}
+              value={priorityFilter}
+              onChange={e => { setPriorityFilter(e.target.value); setOffset(0); }}
+            >
+              <option value="all">Semua</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Critical">Critical</option>
+            </select>
+          </div>
+
+          {/* Category dropdown chip */}
+          <div className="relative flex items-center gap-1 bg-slate-50 dark:bg-slate-800/40 border border-border/60 dark:border-border/10 rounded-full px-3 py-1 cursor-pointer">
+            <span className="text-[10px] font-bold text-text-3">Kategori:</span>
+            <select
+              title="Filter Kategori"
+              className="bg-transparent border-none py-0 text-xs font-bold text-text cursor-pointer outline-none focus:ring-0 w-auto pr-0"
+              style={{ backgroundImage: 'none', paddingRight: '2px' }}
+              value={categoryFilter}
+              onChange={e => { setCategoryFilter(e.target.value); setOffset(0); }}
+            >
+              <option value="all">Semua</option>
+              {uniqueCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Location dropdown chip */}
+          <div className="relative flex items-center gap-1 bg-slate-50 dark:bg-slate-800/40 border border-border/60 dark:border-border/10 rounded-full px-3 py-1 cursor-pointer">
+            <span className="text-[10px] font-bold text-text-3">Lokasi:</span>
+            <select
+              title="Filter Lokasi"
+              className="bg-transparent border-none py-0 text-xs font-bold text-text cursor-pointer outline-none focus:ring-0 w-auto pr-0"
+              style={{ backgroundImage: 'none', paddingRight: '2px' }}
+              value={locationFilter}
+              onChange={e => { setLocationFilter(e.target.value); setOffset(0); }}
+            >
+              <option value="all">Semua</option>
+              {uniqueLocations.map(loc => (
+                <option key={loc} value={loc}>{loc}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Reset Filters button */}
+          {(priorityFilter !== 'all' || categoryFilter !== 'all' || locationFilter !== 'all' || searchQuery.trim() !== '') && (
+            <button
+              onClick={() => {
+                setPriorityFilter('all');
+                setCategoryFilter('all');
+                setLocationFilter('all');
+                setSearchQuery('');
+                setOffset(0);
+              }}
+              className="text-xxs font-black text-rose hover:text-rose-d border-none bg-transparent cursor-pointer ml-auto uppercase tracking-wider flex items-center gap-1"
+            >
+              Reset Filter
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Main Apps Script Double Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6 items-start">
-        
-        {/* Left Side: Filter Navigation */}
-        <div className="space-y-4 shrink-0">
-          <div className="card p-3 bg-white dark:bg-slate-900 space-y-1">
-            <p className="text-[10px] font-extrabold px-3 py-2 text-text-3 uppercase tracking-wider">Kategori Filter</p>
-            {navItems.map(item => {
-              const active = activeNav === item.id;
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => { setActiveNav(item.id); setOffset(0); setSelectedIds(new Set()); }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    active 
-                      ? 'bg-blue-light text-blue border-none dark:bg-blue/15 dark:text-blue-d' 
-                      : 'hover:bg-surface-2 text-text-2 hover:text-text border-transparent'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon size={16} className={active ? 'text-blue' : item.colorClass || 'text-text-3'} />
-                    <span>{item.label}</span>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                    active ? 'bg-blue text-white' : 'bg-surface-2 text-text-3 border border-border/80'
-                  }`}>
-                    {item.count}
-                  </span>
-                </button>
-              );
-            })}
+      {/* 5. Bulk Actions Slide-Down Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between px-6 py-3 bg-blue-light/50 border border-blue-border/40 rounded-2xl animate-slide-up text-xs font-extrabold text-blue dark:bg-blue/5">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === paginatedTickets.length && paginatedTickets.length > 0}
+              ref={el => {
+                if (el) {
+                  el.indeterminate = selectedIds.size > 0 && selectedIds.size < paginatedTickets.length;
+                }
+              }}
+              onChange={handleSelectAll}
+              className="w-4 h-4 text-blue border-border rounded cursor-pointer accent-blue"
+            />
+            <span>{selectedIds.size} tiket terpilih</span>
           </div>
-
-          {/* Quick Metrics Info Box */}
-          <div className="card p-4 bg-white dark:bg-slate-900 space-y-3 text-xs border border-dashed border-border/80">
-            <h4 className="font-bold text-text uppercase tracking-wider text-[10px] text-text-3 flex items-center gap-1.5">
-              <CheckCircle2 size={13} className="text-emerald" /> Indikator SLA
-            </h4>
-            <div className="space-y-2">
-              <div className="flex justify-between font-bold">
-                <span className="text-text-2">Rasio Penyelesaian</span>
-                <span className="text-blue">{counts.all > 0 ? Math.round(((counts.Resolved + counts.Closed) / counts.all) * 100) : 0}%</span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5">
-                <div 
-                  className="bg-blue h-1.5 rounded-full transition-all" 
-                  style={{ width: `${counts.all > 0 ? ((counts.Resolved + counts.Closed) / counts.all) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-            <div className="text-[10px] text-text-3 leading-relaxed">
-              Google Apps Script layout ini mempermudah pencarian tiket secara visual melalui kategori navigasi cepat dan pembintangan manual.
-            </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handleBulkStatusUpdate('In Progress')}
+              className="px-3.5 py-1.5 bg-blue hover:bg-blue-d text-white rounded-full text-xxs font-extrabold cursor-pointer border-none"
+            >
+              Proses (In Progress)
+            </button>
+            <button
+              onClick={() => handleBulkStatusUpdate('Resolved')}
+              className="px-3.5 py-1.5 bg-emerald hover:bg-emerald/90 text-white rounded-full text-xxs font-extrabold cursor-pointer border-none"
+            >
+              Selesaikan (Resolved)
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="px-3.5 py-1.5 bg-rose hover:bg-rose/90 text-white rounded-full text-xxs font-extrabold cursor-pointer border-none flex items-center gap-1"
+            >
+              <Trash2 size={11} /> Hapus Masal
+            </button>
           </div>
         </div>
+      )}
 
-        {/* Right Side: Main Table & Search Operations */}
-        <div className="space-y-4 min-w-0">
+      {/* 6. Ticket Table Card-Table Hybrid */}
+      <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="min-w-[1050px] space-y-3 pb-6">
           
-          {/* Table Header Filter & Search Box */}
-          <div className="card p-3 bg-white dark:bg-slate-900">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="relative flex items-center w-full max-w-md">
-                <Search className="absolute left-3.5 w-4 h-4 text-text-3" />
-                <input
-                  type="text"
-                  placeholder="Cari ID, pelapor, lokasi, kategori, atau masalah..."
-                  className="input-premium pl-10 pr-4 py-2.5 w-full text-xs bg-slate-50 dark:bg-slate-800/40 border-none focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-blue/50 rounded-full transition-all"
-                  value={searchQuery}
-                  onChange={e => { setSearchQuery(e.target.value); setOffset(0); }}
-                />
-              </div>
-
-              <div className="flex items-center gap-2 self-end md:self-auto">
-                <button
-                  type="button"
-                  onClick={fetchTicketsData}
-                  title="Muat Ulang"
-                  className="btn p-2 rounded-full border border-border bg-surface hover:bg-surface-2 text-text-2 hover:text-blue shrink-0 flex items-center justify-center w-9 h-9 cursor-pointer"
-                >
-                  <RotateCw size={14} className={loading ? 'animate-spin' : ''} />
-                </button>
-                <Link href="/tickets/calendar" className="no-underline shrink-0">
-                  <span className="btn border border-border bg-surface hover:bg-surface-2 py-2 px-4 text-xs flex items-center gap-1.5 rounded-full font-bold cursor-pointer text-text-2">
-                    <Calendar size={13} className="text-blue" /> Tampilan Kalender
-                  </span>
-                </Link>
-              </div>
+          {/* Card Table Header */}
+          <div className="grid grid-cols-[40px_35px_1.5fr_1.2fr_1fr_0.8fr_0.8fr_0.8fr_1fr_50px] gap-4 px-6 py-2.5 text-[10px] font-extrabold text-text-3 uppercase tracking-wider border-b border-border/40">
+            <div className="flex items-center">
+              <input 
+                type="checkbox" 
+                checked={selectedIds.size === paginatedTickets.length && paginatedTickets.length > 0} 
+                onChange={handleSelectAll} 
+                className="w-4 h-4 cursor-pointer accent-blue" 
+                title="Pilih semua"
+              />
             </div>
+            <div className="flex items-center justify-center"><Star size={13} className="text-text-3 fill-none" /></div>
+            <div>Tiket & Judul Masalah</div>
+            <div>Pelapor & Lokasi</div>
+            <div>Kategori</div>
+            <div>Prioritas</div>
+            <div>Status</div>
+            <div>SLA</div>
+            <div>Waktu Lapor</div>
+            <div className="text-right">Aksi</div>
           </div>
 
-          {/* Apps Script Style Bulk Actions Bar */}
-          {selectedIds.size > 0 && (
-            <div className="flex items-center justify-between px-5 py-3 bg-blue-light/40 border border-blue-border/30 rounded-xl animate-slide-up text-xs font-bold text-blue dark:bg-blue/5">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.size === paginatedTickets.length && paginatedTickets.length > 0}
-                  ref={el => {
-                    if (el) {
-                      el.indeterminate = selectedIds.size > 0 && selectedIds.size < paginatedTickets.length;
-                    }
-                  }}
-                  onChange={handleSelectAll}
-                  className="w-4 h-4 text-blue border-border rounded cursor-pointer accent-blue"
-                />
-                <span>{selectedIds.size} tiket terpilih</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => handleBulkStatusUpdate('In Progress')}
-                  className="px-3 py-1.5 bg-blue text-white rounded-full hover:bg-blue-d text-xxs font-bold cursor-pointer border-none"
-                >
-                  Set In Progress
-                </button>
-                <button
-                  onClick={() => handleBulkStatusUpdate('Resolved')}
-                  className="px-3 py-1.5 bg-emerald text-white rounded-full hover:bg-emerald/90 text-xxs font-bold cursor-pointer border-none"
-                >
-                  Set Resolved
-                </button>
-                <button
-                  onClick={handleBulkDelete}
-                  className="px-3 py-1.5 bg-rose text-white rounded-full hover:bg-rose/90 text-xxs font-bold cursor-pointer border-none flex items-center gap-1"
-                >
-                  <Trash2 size={11} /> Hapus Masal
-                </button>
-              </div>
+          {/* Cards List Body */}
+          {loading ? (
+            <div className="bg-white dark:bg-slate-900 border border-border/60 dark:border-border/10 rounded-2xl p-16 flex flex-col items-center justify-center gap-3">
+              <div className="w-8 h-8 border-3 border-border border-t-blue rounded-full animate-spin" />
+              <p className="text-xs text-text-3 font-semibold">Memuat aduan helpdesk...</p>
             </div>
-          )}
+          ) : filteredTickets.length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 border border-border/60 dark:border-border/10 rounded-2xl p-20 text-center flex flex-col items-center justify-center">
+              <FolderOpen className="w-12 h-12 text-text-3 opacity-30 mb-4" />
+              <p className="text-sm font-bold text-text-2">Antrean Tiket Kosong</p>
+              <p className="text-xs text-text-3 mt-1">Tidak ada tiket yang terdaftar untuk kriteria filter ini.</p>
+            </div>
+          ) : (
+            paginatedTickets.map(t => {
+              const isSelectedRow = selectedIds.has(t.id);
+              const isStarredRow = starredTickets.has(t.id);
+              const initials = getInitials(t.reporterName);
+              const avatarColor = getAvatarBgColor(t.reporterName);
+              const isFinished = t.status === 'Resolved' || t.status === 'Closed';
 
-          {/* Main List Table */}
-          <TableShell
-            minWidth="1050px"
-            headers={[
-              { 
-                label: (
-                  <input 
-                    type="checkbox" 
-                    checked={selectedIds.size === paginatedTickets.length && paginatedTickets.length > 0} 
-                    onChange={handleSelectAll} 
-                    className="w-4 h-4 cursor-pointer accent-blue" 
-                    title="Pilih semua"
-                  />
-                ), 
-                width: 38 
-              },
-              { label: <Star size={13} className="text-text-3 fill-none" />, width: 32 },
-              { label: 'Tiket & Judul Masalah' },
-              { label: 'Pelapor & Lokasi' },
-              { label: 'Kategori' },
-              { label: 'Prioritas' },
-              { label: 'Status' },
-              { label: 'SLA' },
-              { label: 'Waktu Lapor' },
-              { label: 'Aksi', right: true }
-            ]}
-            loading={loading}
-            colSpan={10}
-          >
-            {filteredTickets.length === 0 && !loading ? (
-              <tr>
-                <td colSpan={10} className="text-center py-20 text-text-3">
-                  <FolderOpen className="mx-auto w-10 h-10 opacity-20 mb-3" />
-                  <p className="text-xs font-semibold">Tidak ditemukan tiket yang sesuai kriteria filter.</p>
-                </td>
-              </tr>
-            ) : (
-              paginatedTickets.map(t => {
-                const isSelectedRow = selectedIds.has(t.id);
-                const isStarredRow = starredTickets.has(t.id);
-                return (
-                  <tr
-                    key={t.id}
-                    onClick={() => openDetail(t)}
-                    className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer ${
-                      isSelectedRow ? 'bg-blue-light/10 dark:bg-blue/5' : ''
-                    } ${t.status === 'Resolved' || t.status === 'Closed' ? 'opacity-65' : ''}`}
-                  >
-                    <td onClick={e => e.stopPropagation()} className="w-10 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={isSelectedRow}
-                        onChange={(e) => toggleSelectRow(t.id, e as any)}
-                        className="w-4 h-4 cursor-pointer accent-blue"
-                        title="Pilih tiket"
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => openDetail(t)}
+                  className={`grid grid-cols-[40px_35px_1.5fr_1.2fr_1fr_0.8fr_0.8fr_0.8fr_1fr_50px] gap-4 items-center bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 rounded-2xl p-4.5 shadow-sm hover:shadow-premium hover:border-blue-border/40 transition-all duration-200 cursor-pointer ${
+                    isSelectedRow ? 'ring-1 ring-blue/30 bg-blue-light/5 dark:bg-blue/5' : ''
+                  } ${isFinished ? 'opacity-65' : ''}`}
+                >
+                  {/* Select row checkbox */}
+                  <div onClick={e => e.stopPropagation()} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={isSelectedRow}
+                      onChange={(e) => toggleSelectRow(t.id, e as any)}
+                      className="w-4 h-4 cursor-pointer accent-blue"
+                      title="Pilih tiket"
+                    />
+                  </div>
+
+                  {/* Toggle Star button */}
+                  <div onClick={e => toggleStar(t.id, e)} className="flex items-center justify-center">
+                    <button 
+                      type="button" 
+                      title={isStarredRow ? 'Hapus bintang' : 'Bintangi'}
+                      className="bg-transparent border-none p-0 outline-none cursor-pointer flex items-center justify-center"
+                    >
+                      <Star 
+                        size={15} 
+                        className={`transition-transform duration-200 hover:scale-125 ${
+                          isStarredRow 
+                            ? 'text-amber fill-amber' 
+                            : 'text-text-3 hover:text-amber fill-none'
+                        }`} 
                       />
-                    </td>
-                    <td onClick={e => toggleStar(t.id, e)} className="w-8 whitespace-nowrap">
-                      <button 
-                        type="button" 
-                        title={isStarredRow ? 'Hapus bintang' : 'Bintangi'}
-                        className="bg-transparent border-none p-0 outline-none cursor-pointer flex items-center justify-center"
-                      >
-                        <Star 
-                          size={15} 
-                          className={`transition-transform duration-200 hover:scale-125 ${
-                            isStarredRow 
-                              ? 'text-amber fill-amber' 
-                              : 'text-text-3 hover:text-amber fill-none'
-                          }`} 
-                        />
-                      </button>
-                    </td>
-                    <td className="whitespace-nowrap">
-                      <div className="font-bold text-text-2 text-[10px] font-mono leading-none mb-1">{t.id}</div>
-                      <div className="font-bold text-xs text-text max-w-xs truncate" title={t.issueTitle}>
-                        {t.issueTitle}
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap">
-                      <div className="font-bold text-text-2 text-xs">{t.reporterName}</div>
-                      <div className="text-[10px] text-text-3 max-w-[160px] truncate" title={t.location}>{t.location}</div>
-                    </td>
-                    <td className="text-xs font-medium text-text-2 whitespace-nowrap">{t.category}</td>
-                    <td className="whitespace-nowrap">
-                      <Badge label={t.priority} colorClass={priorityColors[t.priority]} />
-                    </td>
-                    <td className="whitespace-nowrap">
-                      <Badge label={t.status} colorClass={statusColors[t.status]} />
-                    </td>
-                    <td className="whitespace-nowrap">
-                      <Badge label={t.slaStatus || '—'} colorClass={slaColors[t.slaStatus] || 'badge-slate'} />
-                    </td>
-                    <td className="whitespace-nowrap">
-                      <div className="font-bold text-text text-xxs">{t.ticketDate}</div>
-                      <div className="text-[9px] text-text-3 font-semibold mt-0.5">{t.ticketTime}</div>
-                    </td>
-                    <td onClick={e => e.stopPropagation()} className="relative text-right whitespace-nowrap">
-                      <div className="flex justify-end items-center">
-                        <button
-                          onClick={() => setActiveRowMenuId(activeRowMenuId === t.id ? null : t.id)}
-                          className="btn-icon bg-surface-2 border-none hover:bg-slate-200/80 dark:hover:bg-slate-800 text-text-2 p-1.5 rounded-full flex items-center justify-center cursor-pointer"
-                          title="Menu aksi"
-                        >
-                          <MoreVertical size={14} />
-                        </button>
-                        
-                        {/* Google Apps Script Style Row Action Dropdown */}
-                        {activeRowMenuId === t.id && (
-                          <>
-                            <div className="fixed inset-0 z-40 cursor-default" onClick={() => setActiveRowMenuId(null)} />
-                            <div className="absolute right-0 mt-8 w-44 rounded-xl border border-border bg-surface shadow-hero z-50 py-1.5 text-left text-xs font-semibold">
-                              <button
-                                type="button"
-                                onClick={() => { setActiveRowMenuId(null); openDetail(t); }}
-                                className="w-full text-left px-4 py-2 hover:bg-surface-2 flex items-center gap-2 text-text border-none bg-transparent cursor-pointer"
-                              >
-                                <PenSquare size={13} className="text-text-2" /> Detail & Edit
-                              </button>
-                              <div className="border-t border-border/80 my-1" />
-                              <p className="px-4 py-1 text-[9px] font-extrabold text-text-3 uppercase tracking-wider">Ubah Status</p>
-                              {['Open', 'In Progress', 'Pending Vendor', 'Resolved', 'Closed'].map(st => (
-                                <button
-                                  key={st}
-                                  type="button"
-                                  onClick={() => handleUpdateStatusDirect(t.id, st)}
-                                  className="w-full text-left px-4 py-1.5 hover:bg-surface-2 flex items-center justify-between text-text-2 hover:text-text border-none bg-transparent cursor-pointer"
-                                >
-                                  <span>{st}</span>
-                                  {t.status === st && <Check size={11} className="text-blue" />}
-                                </button>
-                              ))}
-                              <div className="border-t border-border/80 my-1" />
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteDirect(t.id)}
-                                className="w-full text-left px-4 py-2 hover:bg-rose-light/50 hover:text-rose flex items-center gap-2 text-rose border-none bg-transparent cursor-pointer font-bold"
-                              >
-                                <Trash2 size={13} /> Hapus Tiket
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </TableShell>
+                    </button>
+                  </div>
 
-          {/* Pagination panel */}
-          {totalCount > 0 && (
-            <div className="flex items-center justify-between py-4 bg-white dark:bg-slate-900 border border-border rounded-2xl px-6">
-              <p className="text-[10px] text-text-3 font-semibold">
-                Menampilkan <b className="text-text">{Math.min(filteredTickets.length, offset + 1)}–{Math.min(filteredTickets.length, offset + limit)}</b> dari <b className="text-text">{totalCount}</b> tiket
-              </p>
-              <div className="flex gap-2">
-                <button
-                  disabled={offset === 0}
-                  onClick={() => setOffset(prev => Math.max(0, prev - limit))}
-                  className="px-3 py-1.5 border border-border rounded-lg bg-surface text-xxs font-bold text-text-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-2 cursor-pointer"
-                >
-                  Sebelumnya
-                </button>
-                <button
-                  disabled={offset + limit >= totalCount}
-                  onClick={() => setOffset(prev => prev + limit)}
-                  className="px-3 py-1.5 border border-border rounded-lg bg-surface text-xxs font-bold text-text-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-2 cursor-pointer"
-                >
-                  Berikutnya
-                </button>
-              </div>
-            </div>
+                  {/* ID & Title */}
+                  <div className="min-w-0 pr-2">
+                    <div className="font-bold text-text-2 text-[10px] font-mono leading-none mb-1">{t.id}</div>
+                    <div className="font-black text-xs text-slate-850 dark:text-slate-100 truncate" title={t.issueTitle}>
+                      {t.issueTitle}
+                    </div>
+                  </div>
+
+                  {/* Reporter avatar circle + name + location */}
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`w-8 h-8 rounded-full ${avatarColor} flex items-center justify-center font-extrabold text-[10px] shrink-0 shadow-inner`}>
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-black text-slate-800 dark:text-slate-100 text-xs truncate leading-snug">{t.reporterName}</div>
+                      <div className="text-[9.5px] text-text-3 font-semibold truncate mt-0.5" title={t.location}>{t.location}</div>
+                    </div>
+                  </div>
+
+                  {/* Category */}
+                  <div className="text-xs font-semibold text-text-2 truncate">{t.category}</div>
+
+                  {/* Priority badge */}
+                  <div>
+                    <Badge label={t.priority} colorClass={priorityColors[t.priority]} />
+                  </div>
+
+                  {/* Status badge */}
+                  <div>
+                    <Badge label={t.status} colorClass={statusColors[t.status]} />
+                  </div>
+
+                  {/* SLA progress circle */}
+                  <div>
+                    <SlaProgressCircle 
+                      status={t.slaStatus} 
+                      value={t.slaStatus === 'Achieved' ? 100 : t.slaStatus === 'Breached' ? 0 : undefined} 
+                    />
+                  </div>
+
+                  {/* Waktu Lapor */}
+                  <div>
+                    <div className="font-bold text-text-2 text-xxs leading-snug">{t.ticketDate}</div>
+                    <div className="text-[9px] text-text-3 font-semibold mt-0.5 leading-none">{t.ticketTime}</div>
+                  </div>
+
+                  {/* Row Action popover dropdown trigger */}
+                  <div onClick={e => e.stopPropagation()} className="relative text-right">
+                    <div className="flex justify-end items-center">
+                      <button
+                        onClick={() => setActiveRowMenuId(activeRowMenuId === t.id ? null : t.id)}
+                        className="btn-icon bg-surface-2 border-none hover:bg-slate-200/80 dark:hover:bg-slate-800 text-text-2 p-1.5 rounded-full flex items-center justify-center cursor-pointer shadow-sm"
+                        title="Menu aksi"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+                      
+                      {/* Apps Script Context dropdown menu */}
+                      {activeRowMenuId === t.id && (
+                        <>
+                          <div className="fixed inset-0 z-40 cursor-default" onClick={() => setActiveRowMenuId(null)} />
+                          <div className="absolute right-0 mt-8 w-44 rounded-xl border border-border/80 bg-surface shadow-hero z-50 py-1.5 text-left text-xs font-semibold">
+                            <button
+                              type="button"
+                              onClick={() => { setActiveRowMenuId(null); openDetail(t); }}
+                              className="w-full text-left px-4 py-2 hover:bg-surface-2 flex items-center gap-2 text-text border-none bg-transparent cursor-pointer"
+                            >
+                              <PenSquare size={13} className="text-text-2" /> Detail & Edit
+                            </button>
+                            <div className="border-t border-border/80 my-1" />
+                            <p className="px-4 py-1 text-[9px] font-extrabold text-text-3 uppercase tracking-wider">Ubah Status</p>
+                            {['Open', 'In Progress', 'Pending Vendor', 'Resolved', 'Closed'].map(st => (
+                              <button
+                                key={st}
+                                type="button"
+                                onClick={() => handleUpdateStatusDirect(t.id, st)}
+                                className="w-full text-left px-4 py-1.5 hover:bg-surface-2 flex items-center justify-between text-text-2 hover:text-text border-none bg-transparent cursor-pointer"
+                              >
+                                <span>{st}</span>
+                                {t.status === st && <Check size={11} className="text-blue" />}
+                              </button>
+                            ))}
+                            <div className="border-t border-border/80 my-1" />
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDirect(t.id)}
+                              className="w-full text-left px-4 py-2 hover:bg-rose-light/50 hover:text-rose text-xs font-bold text-rose border-none bg-transparent cursor-pointer flex items-center gap-2"
+                            >
+                              <Trash2 size={13} /> Hapus Tiket
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
 
-      {/* Edit ticket Detail Modal */}
+      {/* 7. Pagination Panel (Standard clean footer) */}
+      {totalCount > 0 && (
+        <div className="flex items-center justify-between py-4 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 rounded-2xl px-6 shadow-sm">
+          <p className="text-[10px] text-text-3 font-extrabold uppercase tracking-wider">
+            Menampilkan <b className="text-text">{Math.min(filteredTickets.length, offset + 1)}–{Math.min(filteredTickets.length, offset + limit)}</b> dari <b className="text-text">{totalCount}</b> tiket
+          </p>
+          <div className="flex gap-2">
+            <button
+              disabled={offset === 0}
+              onClick={() => setOffset(prev => Math.max(0, prev - limit))}
+              className="px-4 py-2 border border-border rounded-lg bg-surface text-xxs font-extrabold text-text-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-2 cursor-pointer shadow-sm"
+            >
+              Sebelumnya
+            </button>
+            <button
+              disabled={offset + limit >= totalCount}
+              onClick={() => setOffset(prev => prev + limit)}
+              className="px-4 py-2 border border-border rounded-lg bg-surface text-xxs font-extrabold text-text-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-2 cursor-pointer shadow-sm"
+            >
+              Berikutnya
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit ticket Detail Modal (High-fidelity drawer) */}
       {selectedTicket && (
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) closeDetail(); }}>
           <div className="modal-container modal-md max-w-lg">
@@ -800,7 +1024,7 @@ export default function TicketsListPage() {
                 <span className="modal-title">Detail Tiket IT Helpdesk</span>
                 <div className="text-[10px] font-mono text-text-3 mt-0.5">{selectedTicket.id}</div>
               </div>
-              <button onClick={closeDetail} className="btn-icon" title="Tutup">
+              <button onClick={closeDetail} className="btn-icon cursor-pointer" title="Tutup">
                 <X size={15} />
               </button>
             </div>

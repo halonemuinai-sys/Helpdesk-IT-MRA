@@ -1,78 +1,15 @@
 'use client';
 
 import './globals.css';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutDashboard, Headset, Ticket, BarChart3,
-  Settings, LogOut, Bell, ChevronRight, ChevronLeft, Sun, Moon, Menu, X, Database, Calendar
+  LayoutDashboard, Ticket, BarChart3,
+  LogOut, Bell, Sun, Moon, Database, Calendar, UserCheck, Plus
 } from 'lucide-react';
 import { ThemeProvider, useTheme } from '@/lib/theme';
 import { filterMenuGroups, getInitials, toRole, type UserRole } from '@/lib/role';
-
-const menuGroups = [
-  {
-    label: 'OVERVIEW',
-    items: [{ icon: LayoutDashboard, label: 'Dashboard', href: '/' }],
-  },
-  {
-    label: 'TICKETS',
-    items: [
-      { icon: Headset, label: 'Lapor Gangguan IT', href: '/input' },
-      { icon: Ticket,  label: 'Daftar Tiket',      href: '/tickets' },
-      { icon: Calendar,label: 'Kalender Tiket',    href: '/tickets/calendar' },
-    ],
-  },
-  {
-    label: 'REPORTS',
-    items: [
-      { icon: BarChart3, label: 'Laporan Bulanan', href: '/reports' },
-    ],
-  },
-  {
-    label: 'ADMIN',
-    items: [
-      { icon: Database, label: 'Master Data Config', href: '/master-data' },
-    ],
-  },
-];
-
-function ThemeTogglePill() {
-  const { dark, toggle } = useTheme();
-  return (
-    <button
-      onClick={toggle}
-      title={dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-      className="theme-toggle-pill"
-    >
-      <div className="theme-track">
-        <div className="theme-thumb">
-          {dark
-            ? <Moon size={10} className="text-blue" strokeWidth={2.5} />
-            : <Sun  size={10} className="text-amber" strokeWidth={2.5} />
-          }
-        </div>
-      </div>
-      <span className="text-sm font-semibold text-text-2">
-        {dark ? 'Dark Mode' : 'Light Mode'}
-      </span>
-    </button>
-  );
-}
-
-function NavThemeBtn() {
-  const { dark, toggle } = useTheme();
-  return (
-    <button
-      onClick={toggle}
-      title={dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-      className="p-1.5 rounded-lg hover:bg-surface-2 transition-colors"
-    >
-      {dark ? <Sun size={17} className="text-text-2" /> : <Moon size={17} className="text-text-2" />}
-    </button>
-  );
-}
 
 // Read client side cookies
 function getCookie(name: string): string {
@@ -81,11 +18,17 @@ function getCookie(name: string): string {
   return match ? decodeURIComponent(match[1]) : '';
 }
 
+const menuItems = [
+  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'Daftar Tiket', href: '/tickets', icon: Ticket },
+  { label: 'Kalender Tiket', href: '/tickets/calendar', icon: Calendar },
+  { label: 'Laporan Bulanan', href: '/reports', icon: BarChart3 },
+  { label: 'Master Data Config', href: '/master-data', icon: Database, role: 'admin' },
+];
+
 function Shell({ children }: { children: React.ReactNode }) {
   const pathname  = usePathname();
   const router    = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [role, setRole] = useState<UserRole>('support');
   const [fullName, setFullName] = useState('');
 
@@ -95,11 +38,10 @@ function Shell({ children }: { children: React.ReactNode }) {
     
     // Default to support agent if cookie not set (simple bypass for dev)
     setRole(toRole(userRole || 'support'));
-    setFullName(userFullName || 'IT Agent Support');
+    setFullName(userFullName || 'Budi Santoso');
   }, [pathname]);
 
   const initials = fullName ? getInitials(fullName) : 'IT';
-  const visibleGroups = filterMenuGroups(menuGroups, role);
 
   const handleLogout = () => {
     document.cookie = 'user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
@@ -107,123 +49,114 @@ function Shell({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
-
-  let staggerIndex = 0;
+  // Filter menu items by role
+  const visibleItems = menuItems.filter(item => {
+    if (item.role && item.role !== role) return false;
+    return true;
+  });
 
   return (
     <div className="app-container">
-      {/* Mobile Overlay */}
-      <div 
-        className={`sidebar-overlay ${sidebarOpen ? 'open' : ''} lg:hidden`}
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      {/* Sidebar */}
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
-        <button 
-          className="hidden lg:flex absolute -right-4 top-10 w-8 h-8 bg-surface border border-border rounded-full items-center justify-center text-text-2 hover:text-blue hover:border-blue shadow-md transition-all z-[300] cursor-pointer"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-        >
-          <ChevronLeft size={16} className={`transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
-        </button>
-
-        <div className="sidebar-logo">
-          <img 
-            src="/logo-mra.png" 
-            alt="MRA Logo" 
-            className="w-8 h-8 object-contain shrink-0"
-          />
-          <div className="sidebar-logo-text overflow-hidden whitespace-nowrap">
-            <p className="text-sm font-black tracking-tight text-text leading-tight">
-              MRA Helpdesk
-            </p>
-            <p className="text-[10px] font-bold text-blue mt-0.5">
-              IT Support System
-            </p>
-          </div>
-        </div>
-
-        <nav className="sidebar-menu">
-          {visibleGroups.map((group) => (
-            <div key={group.label} className="mb-1">
-              <p className="text-[10px] font-bold px-3.5 py-2.5 pb-1 text-text-3 uppercase tracking-wider sidebar-menu-group-label">
-                {group.label}
-              </p>
-              {group.items.map((item) => {
-                const active = pathname === item.href;
-                const currentIndex = staggerIndex++;
-                return (
-                  <div 
-                    key={item.href} 
-                    className="sidebar-item-wrap stagger-item"
-                    style={{ '--stagger-delay': currentIndex } as React.CSSProperties}
-                  >
-                    <Link href={item.href} className="block no-underline">
-                      <div className={`sidebar-item${active ? ' active' : ''}`}>
-                        <div className="relative flex items-center">
-                          <item.icon size={16} className={`shrink-0 ${active ? 'text-blue' : 'text-text-3'}`} />
-                        </div>
-                        <span className="sidebar-label flex-1">{item.label}</span>
-                        {active && <ChevronRight size={13} className="active-chevron text-blue shrink-0" />}
-                      </div>
-                    </Link>
-                    {isCollapsed && <div className="flyout-label">{item.label}</div>}
-                  </div>
-                );
-              })}
+      {/* Top Navbar */}
+      <nav className="navbar border-b border-border bg-white px-6 py-4 flex items-center justify-between sticky top-0 z-[100] backdrop-blur-md bg-opacity-80">
+        <div className="flex items-center gap-8">
+          {/* Logo Brand */}
+          <Link href="/" className="flex items-center gap-3 no-underline">
+            <img 
+              src="/logo-mra.png" 
+              alt="MRA Logo" 
+              className="w-9 h-9 object-contain shrink-0"
+            />
+            <div className="flex flex-col">
+              <span className="text-sm font-black tracking-tight text-slate-800 leading-none">
+                MRA HELPDESK
+              </span>
+              <span className="text-[9px] font-bold text-blue tracking-wider mt-0.5 uppercase">
+                IT Support System
+              </span>
             </div>
-          ))}
-        </nav>
+          </Link>
 
-        <div className="sidebar-footer">
-          <ThemeTogglePill />
-          <div className="h-2" />
-          <div 
-            className="sidebar-item-wrap stagger-item"
-            style={{ '--stagger-delay': staggerIndex++ } as React.CSSProperties}
-          >
-            <button 
-              type="button" 
-              className="sidebar-item text-rose w-full text-left bg-transparent border-none font-inherit outline-none" 
-              onClick={handleLogout}
-            >
-              <div className="relative flex items-center">
-                <LogOut size={15} className="shrink-0 text-rose" />
-              </div>
-              <span className="sidebar-label flex-1">Logout</span>
-            </button>
-            {isCollapsed && <div className="flyout-label">Logout</div>}
+          {/* Horizontal Menu Navigation */}
+          <div className="hidden lg:flex items-center gap-1.5 pl-6 border-l border-border/80">
+            {visibleItems.map((item) => {
+              const active = pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <Link key={item.href} href={item.href} className="no-underline">
+                  <div className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    active 
+                      ? 'bg-blue text-white shadow-sm' 
+                      : 'text-text-2 hover:text-text hover:bg-surface-2'
+                  }`}>
+                    <Icon size={14} />
+                    <span>{item.label}</span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
-          <p className="text-[9px] text-text-3 text-center mt-2.5 leading-normal opacity-60">
-            © 2026 MRA Group
-          </p>
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <div className={`main-content ${isCollapsed ? 'collapsed' : ''}`}>
-        <nav className="navbar">
-          <div className="flex items-center gap-4">
-            <button 
-              className="lg:hidden p-1.5 -ml-2 text-text-2 hover:bg-surface-2 rounded-md"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open Menu"
-            >
-              <Menu size={20} />
+        {/* Global CTA, Notification & User Profile */}
+        <div className="flex items-center gap-5">
+          {/* Primary CTA button + Report Issue */}
+          <Link href="/input" className="no-underline hidden sm:block">
+            <button className="flex items-center gap-1.5 px-4.5 py-2.5 bg-gradient-to-r from-blue to-indigo hover:from-blue-d hover:to-indigo text-white text-xxs font-extrabold rounded-full shadow-premium hover:shadow-hover hover:-translate-y-0.5 transition-all border-none cursor-pointer">
+              <Plus size={14} /> Lapor Gangguan
             </button>
+          </Link>
+
+          {/* Notification Bell */}
+          <div className="relative p-2 rounded-full hover:bg-surface-2 transition-colors cursor-pointer text-text-2 flex items-center justify-center">
+            <Bell size={17} />
+            <span className="absolute top-1 right-1 w-4 h-4 bg-rose text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white">
+              2
+            </span>
           </div>
 
-          <div className="nav-right ml-auto">
-            <NavThemeBtn />
-            <div className="nav-avatar" aria-label="User Avatar" title={fullName || role}>{initials}</div>
+          {/* User Profile avatar & info */}
+          <div className="flex items-center gap-3 pl-3 border-l border-border">
+            <div className="flex flex-col text-right hidden md:flex">
+              <span className="text-xs font-black text-slate-850 leading-none">
+                {fullName}
+              </span>
+              <span className="text-[9px] text-text-3 font-extrabold mt-1 uppercase tracking-wider">
+                {role === 'admin' ? 'Administrator' : 'IT Support'}
+              </span>
+            </div>
+            
+            {/* Avatar / Logout Trigger */}
+            <div className="relative group">
+              <button 
+                type="button"
+                className="w-9 h-9 rounded-full bg-blue text-white flex items-center justify-center font-black text-xs shadow-md border-none cursor-pointer hover:bg-blue-d transition-all"
+                title="Klik untuk Logout"
+              >
+                {initials}
+              </button>
+              
+              {/* Dropdown Menu on hover/click */}
+              <div className="absolute right-0 mt-2 w-40 bg-surface border border-border rounded-xl shadow-hero hidden group-focus-within:block group-hover:block z-50 py-1.5">
+                <div className="px-4 py-2 border-b border-border/80 text-xxs text-text-3 font-extrabold uppercase tracking-wider">
+                  Menu Akun
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 hover:bg-rose-light/50 hover:text-rose text-xs font-bold text-rose/95 border-none bg-transparent cursor-pointer flex items-center gap-2"
+                >
+                  <LogOut size={13} /> Log Out
+                </button>
+              </div>
+            </div>
           </div>
-        </nav>
-        <main>{children}</main>
-      </div>
+        </div>
+      </nav>
+
+      {/* Main Content Area */}
+      <main className="main-content">
+        {children}
+      </main>
     </div>
   );
 }
