@@ -81,3 +81,21 @@ export async function PUT(
     return NextResponse.json({ error: 'Failed to update ticket' }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    if (!id) {
+      return NextResponse.json({ error: 'Ticket ID is required' }, { status: 400 });
+    }
+
+    await query(`DELETE FROM helpdesk_tickets WHERE id = $1`, [id]);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('[tickets] DELETE error:', error);
+    return NextResponse.json({ error: 'Failed to delete ticket' }, { status: 500 });
+  }
+}
