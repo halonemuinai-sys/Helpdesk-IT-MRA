@@ -39,6 +39,14 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   const [counts, setCounts] = useState<SidebarCounts>({
     all: 0, starred: 0, active: 0, completed: 0, breached: 0, slaRate: 0,
   });
+  const isTicketsPage = pathname === '/tickets';
+  const [isTicketsMenuExpanded, setIsTicketsMenuExpanded] = useState(isTicketsPage);
+
+  useEffect(() => {
+    if (pathname === '/tickets') {
+      setIsTicketsMenuExpanded(true);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     setRole(toRole(getCookie('user_role') || 'support'));
@@ -78,7 +86,16 @@ function ShellInner({ children }: { children: React.ReactNode }) {
 
   const initials = fullName ? getInitials(fullName) : 'IT';
   const currentFilter = searchParams?.get('filter') || 'all';
-  const isTicketsPage = pathname === '/tickets';
+
+  const handleSemuaTiketClick = (e: React.MouseEvent) => {
+    const isClickingActiveFilter = currentFilter === 'all';
+    if (pathname === '/tickets' && isClickingActiveFilter) {
+      e.preventDefault();
+      setIsTicketsMenuExpanded(!isTicketsMenuExpanded);
+    } else {
+      setIsTicketsMenuExpanded(true);
+    }
+  };
 
   const handleLogout = () => {
     document.cookie = 'user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
@@ -161,44 +178,86 @@ function ShellInner({ children }: { children: React.ReactNode }) {
             Daftar Tiket
           </p>
 
-          {/* Ticket Filter Items */}
-          {filterItems.map(item => {
+          {/* Semua Tiket (Main Group/Item) */}
+          {(() => {
+            const item = filterItems[0];
             const Icon = item.icon;
             const isActive = isTicketsPage && currentFilter === item.id;
             const idx = staggerIndex++;
             return (
               <div
-                key={item.id}
                 className="sidebar-item-wrap stagger-item"
                 style={{ '--stagger-delay': idx } as React.CSSProperties}
               >
-                <Link href={`/tickets?filter=${item.id}`} className="block no-underline">
+                <Link
+                  href={`/tickets?filter=${item.id}`}
+                  onClick={handleSemuaTiketClick}
+                  className="block no-underline"
+                >
                   <div className={`sidebar-item${isActive ? ' active' : ''}`}>
                     <div className="relative flex items-center">
                       <Icon
                         size={16}
-                        className={`shrink-0 ${
-                          isActive
-                            ? 'text-blue'
-                            : item.id === 'breached'
-                              ? 'text-rose'
-                              : item.id === 'starred'
-                                ? 'text-amber'
-                                : 'text-text-3'
-                        }`}
+                        className={`shrink-0 ${isActive ? 'text-blue' : 'text-text-3'}`}
                       />
                     </div>
                     <span className="sidebar-label flex-1">{item.label}</span>
                     <span className="sidebar-badge">{item.count}</span>
-                    {isActive && (
-                      <ChevronRight size={13} className="active-chevron text-blue shrink-0" />
-                    )}
+                    <ChevronRight
+                      size={13}
+                      className={`transition-transform duration-200 shrink-0 ${
+                        isTicketsMenuExpanded ? 'rotate-90 text-blue' : 'text-text-3'
+                      }`}
+                    />
                   </div>
                 </Link>
                 {isCollapsed && <div className="flyout-label">{item.label}</div>}
               </div>
             );
-          })}
+          })()}
+
+          {/* Submenu Items (Berbintang, Aktif, Terselesaikan, SLA Breached) */}
+          {isTicketsMenuExpanded && (
+            <div className={`sidebar-submenu-items ${isCollapsed ? 'collapsed-submenu' : 'expanded-submenu'}`}>
+              {filterItems.slice(1).map(item => {
+                const Icon = item.icon;
+                const isActive = isTicketsPage && currentFilter === item.id;
+                const idx = staggerIndex++;
+                return (
+                  <div
+                    key={item.id}
+                    className="sidebar-item-wrap stagger-item"
+                    style={{ '--stagger-delay': idx } as React.CSSProperties}
+                  >
+                    <Link href={`/tickets?filter=${item.id}`} className="block no-underline">
+                      <div className={`sidebar-item${isActive ? ' active' : ''}`}>
+                        <div className="relative flex items-center">
+                          <Icon
+                            size={16}
+                            className={`shrink-0 ${
+                              isActive
+                                ? 'text-blue'
+                                : item.id === 'breached'
+                                  ? 'text-rose'
+                                  : item.id === 'starred'
+                                    ? 'text-amber'
+                                    : 'text-text-3'
+                            }`}
+                          />
+                        </div>
+                        <span className="sidebar-label flex-1">{item.label}</span>
+                        <span className="sidebar-badge">{item.count}</span>
+                        {isActive && (
+                          <ChevronRight size={13} className="active-chevron text-blue shrink-0" />
+                        )}
+                      </div>
+                    </Link>
+                    {isCollapsed && <div className="flyout-label">{item.label}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Section Label */}
           <p className="text-[10px] font-bold px-3.5 py-2.5 pb-1 text-text-3 uppercase tracking-wider sidebar-menu-group-label">
