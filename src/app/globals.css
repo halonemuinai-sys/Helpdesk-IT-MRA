@@ -136,13 +136,14 @@ body {
 .app-container { display: block; min-height: 100vh; }
 
 .main-content {
-  margin-left: 0;
+  margin-left: 256px;
   background: var(--bg);
   min-height: calc(100vh - 72px);
+  transition: margin-left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .main-content.collapsed {
-  margin-left: 0;
+  margin-left: 72px;
 }
 
 /* ── Sidebar ───────────────────────────────────────────────── */
