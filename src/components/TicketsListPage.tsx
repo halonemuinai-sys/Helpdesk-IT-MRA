@@ -821,7 +821,7 @@ export default function TicketsListPage() {
                 <div
                   key={t.id}
                   onClick={() => openDetail(t)}
-                  className={`grid grid-cols-[40px_35px_1.5fr_1.2fr_1fr_0.8fr_0.8fr_0.8fr_1fr_50px] gap-4 items-center bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 rounded-2xl p-4.5 shadow-sm hover:shadow-premium hover:border-blue-border/40 transition-all duration-200 cursor-pointer ${
+                  className={`grid grid-cols-[40px_35px_1.5fr_1.2fr_1fr_0.8fr_0.8fr_0.8fr_1fr_50px] gap-3 items-center bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 rounded-2xl py-3 px-4.5 shadow-sm hover:shadow-premium hover:border-blue-border/40 transition-all duration-200 cursor-pointer ${
                     isSelectedRow ? 'ring-1 ring-blue/30 bg-blue-light/5 dark:bg-blue/5' : ''
                   } ${isFinished ? 'opacity-65' : ''}`}
                 >
@@ -1027,45 +1027,45 @@ export default function TicketsListPage() {
       })()}
 
       {/* 8. Bottom KPI Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card p-4 bg-white border border-border/70 hover:border-blue-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-blue-light text-blue flex items-center justify-center shrink-0">
-            <List size={18} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="card p-3 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-blue-border/40 hover:shadow-sm transition-all rounded-xl flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-blue-light text-blue flex items-center justify-center shrink-0">
+            <List size={15} />
           </div>
           <div>
-            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Total Tiket</span>
-            <span className="text-xl font-black text-slate-800">{counts.all}</span>
-            <span className="text-[9px] text-text-3 font-medium block">Semua tiket masuk</span>
+            <span className="text-[9px] font-bold text-text-3 uppercase tracking-wider block">Total Tiket</span>
+            <span className="text-base font-bold text-slate-800 dark:text-slate-100">{counts.all}</span>
+            <span className="text-[8.5px] text-text-3 font-medium block mt-0.5">Semua tiket masuk</span>
           </div>
         </div>
-        <div className="card p-4 bg-white border border-border/70 hover:border-emerald-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-emerald-light text-emerald flex items-center justify-center shrink-0">
-            <CheckCircle2 size={18} />
+        <div className="card p-3 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-emerald-border/40 hover:shadow-sm transition-all rounded-xl flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-emerald-light text-emerald flex items-center justify-center shrink-0">
+            <CheckCircle2 size={15} />
           </div>
           <div>
-            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Tiket Selesai</span>
-            <span className="text-xl font-black text-emerald">{counts.Resolved + counts.Closed}</span>
-            <span className="text-[9px] text-text-3 font-medium block">Selesai tepat waktu</span>
+            <span className="text-[9px] font-bold text-text-3 uppercase tracking-wider block">Tiket Selesai</span>
+            <span className="text-base font-bold text-emerald">{counts.Resolved + counts.Closed}</span>
+            <span className="text-[8.5px] text-text-3 font-medium block mt-0.5">Selesai tepat waktu</span>
           </div>
         </div>
-        <div className="card p-4 bg-white border border-border/70 hover:border-amber-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-amber-light text-amber flex items-center justify-center shrink-0">
-            <Clock size={18} />
+        <div className="card p-3 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-amber-border/40 hover:shadow-sm transition-all rounded-xl flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-light text-amber flex items-center justify-center shrink-0">
+            <Clock size={15} />
           </div>
           <div>
-            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Tiket Aktif</span>
-            <span className="text-xl font-black text-amber">{activeTicketsCount}</span>
-            <span className="text-[9px] text-text-3 font-medium block">Sedang dalam proses</span>
+            <span className="text-[9px] font-bold text-text-3 uppercase tracking-wider block">Tiket Aktif</span>
+            <span className="text-base font-bold text-amber">{activeTicketsCount}</span>
+            <span className="text-[8.5px] text-text-3 font-medium block mt-0.5">Sedang dalam proses</span>
           </div>
         </div>
-        <div className="card p-4 bg-white border border-border/70 hover:border-rose-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-rose-light text-rose flex items-center justify-center shrink-0">
-            <AlertTriangle size={18} />
+        <div className="card p-3 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-rose-border/40 hover:shadow-sm transition-all rounded-xl flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-rose-light text-rose flex items-center justify-center shrink-0">
+            <AlertTriangle size={15} />
           </div>
           <div>
-            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">SLA Breached</span>
-            <span className="text-xl font-black text-rose">{slaBreachedCount}</span>
-            <span className="text-[9px] text-text-3 font-medium block">Perlu perhatian</span>
+            <span className="text-[9px] font-bold text-text-3 uppercase tracking-wider block">SLA Breached</span>
+            <span className="text-base font-bold text-rose">{slaBreachedCount}</span>
+            <span className="text-[8.5px] text-text-3 font-medium block mt-0.5">Perlu perhatian</span>
           </div>
         </div>
       </div>
