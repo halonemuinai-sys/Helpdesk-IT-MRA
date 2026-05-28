@@ -200,11 +200,11 @@ function ShellInner({ children }: { children: React.ReactNode }) {
             );
           })}
 
+          {/* Section Label */}
+          <p className="text-[10px] font-bold px-3.5 py-2.5 pb-1 text-text-3 uppercase tracking-wider sidebar-menu-group-label">
+            Menu Lainnya
+          </p>
 
-        </nav>
-
-        {/* ── Footer ──────────────────────────────── */}
-        <div className="sidebar-footer">
           {/* Kalender */}
           <div
             className="sidebar-item-wrap stagger-item"
@@ -250,7 +250,10 @@ function ShellInner({ children }: { children: React.ReactNode }) {
               {isCollapsed && <div className="flyout-label">Kelola & Pengaturan</div>}
             </div>
           )}
+        </nav>
 
+        {/* ── Footer ──────────────────────────────── */}
+        <div className="sidebar-footer">
           {/* Logout */}
           <div
             className="sidebar-item-wrap stagger-item"
