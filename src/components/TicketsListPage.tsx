@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { 
   RotateCw, Search, PenSquare, X, Save, Loader2, Calendar
 } from 'lucide-react';
-import { Badge, FormError, TableShell } from '@/components/PageShared';
+import { Badge, FormError, TableShell, DatePickerPremium } from '@/components/PageShared';
 import Link from 'next/link';
 
 interface Ticket {
@@ -446,12 +446,9 @@ export default function TicketsListPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="form-label">Tgl Respon Awal</label>
-                  <input
-                    type="date"
-                    title="Response Date"
-                    className="input-premium text-xs"
+                  <DatePickerPremium
                     value={editResponseDate}
-                    onChange={e => setEditResponseDate(e.target.value)}
+                    onChange={val => setEditResponseDate(val)}
                   />
                 </div>
                 <div>
@@ -469,12 +466,9 @@ export default function TicketsListPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="form-label">Tgl Selesai</label>
-                  <input
-                    type="date"
-                    title="Resolved Date"
-                    className="input-premium text-xs"
+                  <DatePickerPremium
                     value={editResolvedDate}
-                    onChange={e => setEditResolvedDate(e.target.value)}
+                    onChange={val => setEditResolvedDate(val)}
                   />
                 </div>
                 <div>

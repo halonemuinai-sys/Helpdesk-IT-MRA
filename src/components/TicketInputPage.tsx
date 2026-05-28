@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Headset, Send, CheckCircle2, Loader2 } from 'lucide-react';
-import { FF, FormError } from '@/components/PageShared';
+import { FF, FormError, DatePickerPremium } from '@/components/PageShared';
 
 interface Employee {
   id: number;
@@ -159,12 +159,9 @@ export default function TicketInputPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <FF label="Tanggal Lapor" required>
-              <input
-                type="date"
-                title="Tanggal Lapor"
-                className="input-premium"
+              <DatePickerPremium
                 value={ticketDate}
-                onChange={e => setTicketDate(e.target.value)}
+                onChange={val => setTicketDate(val)}
                 required
               />
             </FF>

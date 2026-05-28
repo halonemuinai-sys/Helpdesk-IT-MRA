@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Calendar, List, 
   RotateCw, AlertCircle, X, Save, Loader2, PenSquare
 } from 'lucide-react';
-import { Badge, FormError } from '@/components/PageShared';
+import { Badge, FormError, DatePickerPremium } from '@/components/PageShared';
 import Link from 'next/link';
 
 interface Ticket {
@@ -611,12 +611,9 @@ export default function TicketsCalendarPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="form-label" htmlFor="edit-resp-date">Tgl Respon Awal</label>
-                  <input
-                    id="edit-resp-date"
-                    type="date"
-                    className="input-premium text-xs"
+                  <DatePickerPremium
                     value={editResponseDate}
-                    onChange={e => setEditResponseDate(e.target.value)}
+                    onChange={val => setEditResponseDate(val)}
                   />
                 </div>
                 <div>
@@ -634,12 +631,9 @@ export default function TicketsCalendarPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="form-label" htmlFor="edit-res-date">Tgl Selesai</label>
-                  <input
-                    id="edit-res-date"
-                    type="date"
-                    className="input-premium text-xs"
+                  <DatePickerPremium
                     value={editResolvedDate}
-                    onChange={e => setEditResolvedDate(e.target.value)}
+                    onChange={val => setEditResolvedDate(val)}
                   />
                 </div>
                 <div>
