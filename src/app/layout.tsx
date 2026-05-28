@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Headset, Ticket, BarChart3,
-  Settings, LogOut, Bell, ChevronRight, ChevronLeft, Sun, Moon, Menu, X, Database
+  Settings, LogOut, Bell, ChevronRight, ChevronLeft, Sun, Moon, Menu, X, Database, Calendar
 } from 'lucide-react';
 import { ThemeProvider, useTheme } from '@/lib/theme';
 import { filterMenuGroups, getInitials, toRole, type UserRole } from '@/lib/role';
@@ -21,6 +21,7 @@ const menuGroups = [
     items: [
       { icon: Headset, label: 'Lapor Gangguan IT', href: '/input' },
       { icon: Ticket,  label: 'Daftar Tiket',      href: '/tickets' },
+      { icon: Calendar,label: 'Kalender Tiket',    href: '/tickets/calendar' },
     ],
   },
   {

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { 
-  RotateCw, Search, PenSquare, X, Save, Loader2
+  RotateCw, Search, PenSquare, X, Save, Loader2, Calendar
 } from 'lucide-react';
 import { Badge, FormError, TableShell } from '@/components/PageShared';
+import Link from 'next/link';
 
 interface Ticket {
   id: string;
@@ -265,6 +266,11 @@ export default function TicketsListPage() {
             >
               <RotateCw size={15} />
             </button>
+            <Link href="/tickets/calendar" className="block no-underline">
+              <span className="btn btn-primary py-2 px-3 text-xs flex items-center gap-1.5">
+                <Calendar size={14} /> Kalender
+              </span>
+            </Link>
           </form>
         </div>
       </div>
