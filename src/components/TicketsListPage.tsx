@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Badge, FormError, DatePickerPremium } from '@/components/PageShared';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 interface Ticket {
   id: string;
@@ -105,7 +106,9 @@ export default function TicketsListPage() {
   const [allTickets, setAllTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeNav, setActiveNav] = useState('all'); // 'all' | 'starred' | 'active' | 'completed' | 'breached'
+  // Read ticket filter from sidebar URL navigation
+  const searchParams = useSearchParams();
+  const activeNav = searchParams?.get('filter') || 'all';
   const [limit, setLimit] = useState(25);
   const [offset, setOffset] = useState(0);
 
@@ -535,14 +538,6 @@ export default function TicketsListPage() {
     'Beroperasi Normal': 'badge-emerald'
   };
 
-  const navItems = [
-    { id: 'all', label: 'Semua Tiket', icon: List, count: allTickets.length },
-    { id: 'starred', label: 'Berbintang', icon: Star, count: allTickets.filter(t => starredTickets.has(t.id)).length, colorClass: 'text-amber fill-amber' },
-    { id: 'active', label: 'Tiket Aktif', icon: Clock, count: allTickets.filter(t => ['Open', 'In Progress', 'Pending Vendor'].includes(t.status)).length },
-    { id: 'completed', label: 'Terselesaikan', icon: CheckCircle2, count: allTickets.filter(t => ['Resolved', 'Closed'].includes(t.status)).length },
-    { id: 'breached', label: 'SLA Breached', icon: AlertTriangle, count: allTickets.filter(t => t.slaStatus === 'Breached').length, colorClass: 'text-rose' },
-  ];
-
   // Extract unique categories & locations for dropdown filter chips
   const uniqueCategories = Array.from(new Set(allTickets.map(t => t.category))).filter(Boolean);
   const uniqueLocations = Array.from(new Set(allTickets.map(t => {
@@ -553,107 +548,25 @@ export default function TicketsListPage() {
   const activeTicketsCount = counts.Open + counts.InProgress + counts.PendingVendor;
   const slaBreachedCount = allTickets.filter(t => t.slaStatus === 'Breached').length;
 
+  // Reset pagination when sidebar filter changes
+  useEffect(() => {
+    setOffset(0);
+    setSelectedIds(new Set());
+  }, [activeNav]);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       
-      {/* 1. Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2 border-b border-border/60 pb-4">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight leading-tight flex items-center gap-2">
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-tight">
             IT Helpdesk Ticket Registry
           </h1>
           <p className="text-xs text-text-3 font-semibold mt-1">
-            Kelola dan pantau status antrean gangguan IT MRA Group dengan performa SLA premium.
+            Kelola dan pantau status antrean gangguan IT MRA Group.
           </p>
         </div>
-      </div>
-
-      {/* 2. KPI Cards Dashboard (Top) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Total Tickets */}
-        <div className="card p-4.5 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-blue-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Total Tiket</span>
-            <span className="text-2.5xl font-black text-slate-850 dark:text-slate-100">{counts.all}</span>
-            <span className="text-[10px] text-text-3 font-medium block">Semua tiket masuk</span>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-blue-light dark:bg-blue/10 text-blue flex items-center justify-center shrink-0 shadow-sm">
-            <List size={18} />
-          </div>
-        </div>
-
-        {/* Active Ticket */}
-        <div className="card p-4.5 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-amber-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Tiket Aktif</span>
-            <span className="text-2.5xl font-black text-amber">{activeTicketsCount}</span>
-            <span className="text-[10px] text-text-3 font-medium block">Sedang diproses</span>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-amber-light dark:bg-amber/10 text-amber flex items-center justify-center shrink-0 shadow-sm">
-            <Clock size={18} />
-          </div>
-        </div>
-
-        {/* Resolved */}
-        <div className="card p-4.5 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-emerald-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Terselesaikan</span>
-            <span className="text-2.5xl font-black text-emerald">{counts.Resolved + counts.Closed}</span>
-            <span className="text-[10px] text-text-3 font-medium block">Penyelesaian sukses</span>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-emerald-light dark:bg-emerald/10 text-emerald flex items-center justify-center shrink-0 shadow-sm">
-            <CheckCircle2 size={18} />
-          </div>
-        </div>
-
-        {/* SLA Breached */}
-        <div className="card p-4.5 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 hover:border-rose-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">SLA Breached</span>
-            <span className="text-2.5xl font-black text-rose">{slaBreachedCount}</span>
-            <span className="text-[10px] text-text-3 font-medium block">Butuh perhatian</span>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-rose-light dark:bg-rose/10 text-rose flex items-center justify-center shrink-0 shadow-sm">
-            <AlertTriangle size={18} />
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Ticket Filter Navigation Segmented Tabs (Horizontal) */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-1 pb-3 border-b border-border/50">
-        {/* Horizontal Navigation Pills */}
-        <div className="flex items-center bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl gap-0.5 self-start overflow-x-auto max-w-full">
-          {navItems.map(item => {
-            const active = activeNav === item.id;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => { setActiveNav(item.id); setOffset(0); setSelectedIds(new Set()); }}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all border-none cursor-pointer shrink-0 ${
-                  active 
-                    ? 'bg-white dark:bg-slate-800 text-blue shadow-sm' 
-                    : 'text-text-2 hover:text-text bg-transparent'
-                }`}
-              >
-                <Icon size={14} className={active ? 'text-blue' : item.colorClass || 'text-text-3'} />
-                <span>{item.label}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black leading-none ${
-                  active ? 'bg-blue text-white' : 'bg-slate-200 dark:bg-slate-800 text-text-3'
-                }`}>
-                  {item.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Primary CTA + Lapor Gangguan Baru */}
-        <Link href="/input" className="no-underline">
-          <button className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue to-indigo hover:from-blue-d hover:to-indigo text-white text-xs font-extrabold rounded-full shadow-premium hover:shadow-hover hover:-translate-y-0.5 transition-all border-none cursor-pointer">
-            <Plus size={16} /> Lapor Gangguan Baru
-          </button>
-        </Link>
       </div>
 
       {/* 4. Search & Filter Area */}
@@ -990,9 +903,9 @@ export default function TicketsListPage() {
         </div>
       </div>
 
-      {/* 7. Pagination Panel (Standard clean footer) */}
+      {/* 7. Pagination Panel */}
       {totalCount > 0 && (
-        <div className="flex items-center justify-between py-4 bg-white dark:bg-slate-900 border border-border/70 dark:border-border/10 rounded-2xl px-6 shadow-sm">
+        <div className="flex items-center justify-between py-4 bg-white border border-border/70 rounded-2xl px-6 shadow-sm">
           <p className="text-[10px] text-text-3 font-extrabold uppercase tracking-wider">
             Menampilkan <b className="text-text">{Math.min(filteredTickets.length, offset + 1)}–{Math.min(filteredTickets.length, offset + limit)}</b> dari <b className="text-text">{totalCount}</b> tiket
           </p>
@@ -1014,6 +927,50 @@ export default function TicketsListPage() {
           </div>
         </div>
       )}
+
+      {/* 8. Bottom KPI Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="card p-4 bg-white border border-border/70 hover:border-blue-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-blue-light text-blue flex items-center justify-center shrink-0">
+            <List size={18} />
+          </div>
+          <div>
+            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Total Tiket</span>
+            <span className="text-xl font-black text-slate-800">{counts.all}</span>
+            <span className="text-[9px] text-text-3 font-medium block">Semua tiket masuk</span>
+          </div>
+        </div>
+        <div className="card p-4 bg-white border border-border/70 hover:border-emerald-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-emerald-light text-emerald flex items-center justify-center shrink-0">
+            <CheckCircle2 size={18} />
+          </div>
+          <div>
+            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Tiket Selesai</span>
+            <span className="text-xl font-black text-emerald">{counts.Resolved + counts.Closed}</span>
+            <span className="text-[9px] text-text-3 font-medium block">Selesai tepat waktu</span>
+          </div>
+        </div>
+        <div className="card p-4 bg-white border border-border/70 hover:border-amber-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-amber-light text-amber flex items-center justify-center shrink-0">
+            <Clock size={18} />
+          </div>
+          <div>
+            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">Tiket Aktif</span>
+            <span className="text-xl font-black text-amber">{activeTicketsCount}</span>
+            <span className="text-[9px] text-text-3 font-medium block">Sedang dalam proses</span>
+          </div>
+        </div>
+        <div className="card p-4 bg-white border border-border/70 hover:border-rose-border/40 hover:shadow-premium transition-all rounded-2xl flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-rose-light text-rose flex items-center justify-center shrink-0">
+            <AlertTriangle size={18} />
+          </div>
+          <div>
+            <span className="text-[10px] font-extrabold text-text-3 uppercase tracking-wider block">SLA Breached</span>
+            <span className="text-xl font-black text-rose">{slaBreachedCount}</span>
+            <span className="text-[9px] text-text-3 font-medium block">Perlu perhatian</span>
+          </div>
+        </div>
+      </div>
 
       {/* Edit ticket Detail Modal (High-fidelity drawer) */}
       {selectedTicket && (
