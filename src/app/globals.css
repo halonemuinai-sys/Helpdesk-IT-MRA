@@ -682,7 +682,7 @@ html.dark .flyout-label {
 
 .premium-table th {
   text-align: left;
-  padding: 0.8rem 1rem;
+  padding: 0.65rem 0.9rem;
   font-size: 0.65rem;
   font-weight: 800;
   color: var(--text-3);
@@ -693,9 +693,9 @@ html.dark .flyout-label {
 }
 
 .premium-table td {
-  padding: 0.8rem 1rem;
+  padding: 0.65rem 0.9rem;
   border-bottom: 1px solid var(--border);
-  font-size: 0.875rem;
+  font-size: 0.83rem;
   color: var(--text);
 }
 

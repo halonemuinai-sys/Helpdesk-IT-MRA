@@ -615,6 +615,7 @@ export default function TicketsListPage() {
 
           {/* Main List Table */}
           <TableShell
+            minWidth="1050px"
             headers={[
               { 
                 label: (
@@ -660,7 +661,7 @@ export default function TicketsListPage() {
                       isSelectedRow ? 'bg-blue-light/10 dark:bg-blue/5' : ''
                     } ${t.status === 'Resolved' || t.status === 'Closed' ? 'opacity-65' : ''}`}
                   >
-                    <td onClick={e => e.stopPropagation()} className="w-10">
+                    <td onClick={e => e.stopPropagation()} className="w-10 whitespace-nowrap">
                       <input
                         type="checkbox"
                         checked={isSelectedRow}
@@ -669,7 +670,7 @@ export default function TicketsListPage() {
                         title="Pilih tiket"
                       />
                     </td>
-                    <td onClick={e => toggleStar(t.id, e)} className="w-8">
+                    <td onClick={e => toggleStar(t.id, e)} className="w-8 whitespace-nowrap">
                       <button 
                         type="button" 
                         title={isStarredRow ? 'Hapus bintang' : 'Bintangi'}
@@ -685,35 +686,35 @@ export default function TicketsListPage() {
                         />
                       </button>
                     </td>
-                    <td>
+                    <td className="whitespace-nowrap">
                       <div className="font-bold text-text-2 text-[10px] font-mono leading-none mb-1">{t.id}</div>
                       <div className="font-bold text-xs text-text max-w-xs truncate" title={t.issueTitle}>
                         {t.issueTitle}
                       </div>
                     </td>
-                    <td>
+                    <td className="whitespace-nowrap">
                       <div className="font-bold text-text-2 text-xs">{t.reporterName}</div>
-                      <div className="text-[10px] text-text-3">{t.location}</div>
+                      <div className="text-[10px] text-text-3 max-w-[160px] truncate" title={t.location}>{t.location}</div>
                     </td>
-                    <td className="text-xs font-medium text-text-2">{t.category}</td>
-                    <td>
+                    <td className="text-xs font-medium text-text-2 whitespace-nowrap">{t.category}</td>
+                    <td className="whitespace-nowrap">
                       <Badge label={t.priority} colorClass={priorityColors[t.priority]} />
                     </td>
-                    <td>
+                    <td className="whitespace-nowrap">
                       <Badge label={t.status} colorClass={statusColors[t.status]} />
                     </td>
-                    <td>
+                    <td className="whitespace-nowrap">
                       <Badge label={t.slaStatus || '—'} colorClass={slaColors[t.slaStatus] || 'badge-slate'} />
                     </td>
-                    <td>
+                    <td className="whitespace-nowrap">
                       <div className="font-bold text-text text-xxs">{t.ticketDate}</div>
                       <div className="text-[9px] text-text-3 font-semibold mt-0.5">{t.ticketTime}</div>
                     </td>
-                    <td onClick={e => e.stopPropagation()} className="relative text-right">
+                    <td onClick={e => e.stopPropagation()} className="relative text-right whitespace-nowrap">
                       <div className="flex justify-end items-center">
                         <button
                           onClick={() => setActiveRowMenuId(activeRowMenuId === t.id ? null : t.id)}
-                          className="btn-icon bg-surface-2 border-none hover:bg-slate-200/80 dark:hover:bg-slate-800 text-text-2 p-1.5 rounded-full flex items-center justify-center"
+                          className="btn-icon bg-surface-2 border-none hover:bg-slate-200/80 dark:hover:bg-slate-800 text-text-2 p-1.5 rounded-full flex items-center justify-center cursor-pointer"
                           title="Menu aksi"
                         >
                           <MoreVertical size={14} />

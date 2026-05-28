@@ -138,16 +138,17 @@ export function FormError({ msg }: { msg: string }) {
 }
 
 // Table Shell
-export function TableShell({ headers, children, loading, colSpan }: {
+export function TableShell({ headers, children, loading, colSpan, minWidth }: {
   headers: { label: React.ReactNode; right?: boolean; width?: string | number }[];
   children: React.ReactNode;
   loading?: boolean;
   colSpan: number;
+  minWidth?: string | number;
 }) {
   return (
     <div className="table-shell">
       <div className="overflow-x-auto">
-        <table>
+        <table className="premium-table" style={minWidth ? { minWidth: minWidth } : {}}>
           <thead>
             <tr>
               {headers.map((h, i) => (
