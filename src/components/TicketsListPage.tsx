@@ -1,14 +1,19 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { 
+import {
   RotateCw, Search, PenSquare, X, Save, Loader2, Calendar,
-  MoreVertical, Star, CheckCircle2, AlertTriangle, List, 
-  Clock, Users, Trash2, Check, Plus, FolderOpen, AlertCircle,
-  Filter, ChevronDown, RefreshCw, HardDrive, Code, Network,
-  Monitor, Mail, Printer, Settings, HelpCircle
+  MoreVertical, Star, CheckCircle2, AlertTriangle, List,
+  Clock, Trash2, Check, Plus, FolderOpen, AlertCircle,
+  Filter, Download
 } from 'lucide-react';
-import { Badge, FormError, DatePickerPremium } from '@/components/PageShared';
+import { Badge } from '@/components/PageShared';
+import { SlaProgressCircle } from '@/components/tickets/SlaProgressCircle';
+import { TicketDetailModal } from '@/components/tickets/TicketDetailModal';
+import {
+  getAvatarBgColor, getTicketInitials, getCategoryIcon,
+  formatIndonesianDate, PRIORITY_COLORS, STATUS_COLORS,
+} from '@/lib/ticketUtils';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -36,114 +41,6 @@ interface DropdownItem {
   id: number;
   category: string;
   value: string;
-}
-
-function SlaProgressCircle({ status, value, ticketStatus }: { status: string; value?: number; ticketStatus: string }) {
-  if (value === undefined) {
-    return (
-      <div className="w-8 h-8 rounded-full border border-border/80 flex items-center justify-center text-text-3 font-bold text-[10px]">
-        —
-      </div>
-    );
-  }
-
-  const isAchieved = status === 'Achieved' || (ticketStatus === 'In Progress');
-  const color = isAchieved
-    ? (ticketStatus === 'In Progress' ? 'stroke-blue text-blue' : 'stroke-emerald text-emerald')
-    : 'stroke-rose text-rose';
-
-  const percentage = value;
-  const strokeDashoffset = 75.4 - (75.4 * percentage) / 100;
-
-  return (
-    <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
-      <svg className="w-8 h-8 transform -rotate-90">
-        <circle
-          cx="16"
-          cy="16"
-          r="12"
-          className="stroke-slate-100 dark:stroke-slate-800/40"
-          strokeWidth="2.5"
-          fill="transparent"
-        />
-        <circle
-          cx="16"
-          cy="16"
-          r="12"
-          className={color}
-          strokeWidth="2.5"
-          fill="transparent"
-          strokeDasharray="75.4"
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-        />
-      </svg>
-      <span className={`absolute text-[8px] font-black leading-none ${ticketStatus === 'In Progress' ? 'text-blue' : isAchieved ? 'text-emerald' : 'text-rose'}`}>
-        {percentage}%
-      </span>
-    </div>
-  );
-}
-
-function getAvatarBgColor(name: string): string {
-  if (!name) return 'bg-slate-100 text-slate-500';
-  const charCode = name.charCodeAt(0) + (name.charCodeAt(1) || 0);
-  const colors = [
-    'bg-blue-light text-blue dark:bg-blue/15 dark:text-blue-d',
-    'bg-emerald-light text-emerald dark:bg-emerald/15 dark:text-emerald',
-    'bg-amber-light text-amber dark:bg-amber/15 dark:text-amber',
-    'bg-rose-light text-rose dark:bg-rose/15 dark:text-rose',
-    'bg-indigo-light text-indigo dark:bg-indigo/15 dark:text-indigo'
-  ];
-  return colors[charCode % colors.length];
-}
-
-function getInitials(name: string): string {
-  if (!name) return 'IT';
-  const parts = name.split(' ');
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return name.substring(0, 2).toUpperCase();
-}
-
-function getCategoryIcon(category: string) {
-  const cat = (category || '').toLowerCase();
-  if (cat.includes('hard') || cat.includes('fisik')) {
-    return HardDrive;
-  }
-  if (cat.includes('soft') || cat.includes('os') || cat.includes('sistem')) {
-    return Code;
-  }
-  if (cat.includes('jar') || cat.includes('inter') || cat.includes('net') || cat.includes('wifi')) {
-    return Network;
-  }
-  if (cat.includes('retail') || cat.includes('pos')) {
-    return Monitor;
-  }
-  if (cat.includes('mail') || cat.includes('collaboration') || cat.includes('outlook') || cat.includes('email')) {
-    return Mail;
-  }
-  if (cat.includes('print') || cat.includes('scan')) {
-    return Printer;
-  }
-  if (cat.includes('main') || cat.includes('rutin')) {
-    return Settings;
-  }
-  return HelpCircle;
-}
-
-function formatIndonesianDate(dateStr: string) {
-  if (!dateStr) return '—';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  const [year, month, day] = parts;
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
-  ];
-  const monthIdx = parseInt(month, 10) - 1;
-  return `${parseInt(day, 10)} ${months[monthIdx] || month} ${year}`;
 }
 
 export default function TicketsListPage() {
@@ -514,6 +411,36 @@ export default function TicketsListPage() {
     }
   };
 
+  // Export filtered tickets ke CSV
+  const exportCSV = () => {
+    const headers = [
+      'ID Tiket', 'Tanggal', 'Jam', 'Pelapor', 'Lokasi', 'Sumber',
+      'Kategori', 'Judul Masalah', 'Deskripsi', 'Prioritas', 'Status',
+      'SLA', 'Tgl Respon', 'Jam Respon', 'Tgl Selesai', 'Jam Selesai', 'Dampak'
+    ];
+
+    const esc = (v: string) => `"${(v || '').replace(/"/g, '""')}"`;
+
+    const rows = filteredTickets.map(t => [
+      esc(t.id), esc(t.ticketDate), esc(t.ticketTime),
+      esc(t.reporterName), esc(t.location), esc(t.ticketSource),
+      esc(t.category), esc(t.issueTitle), esc(t.description),
+      esc(t.priority), esc(t.status), esc(t.slaStatus),
+      esc(t.responseDate), esc(t.responseTime),
+      esc(t.resolvedDate), esc(t.resolvedTime), esc(t.impactLevel),
+    ].join(','));
+
+    const csv  = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    a.href     = url;
+    a.download = `helpdesk-tickets-${date}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Perform client-side filtering matching the Google App Script feel
   const filteredTickets = allTickets.filter(t => {
     // 1. Navigation side filters
@@ -556,32 +483,7 @@ export default function TicketsListPage() {
   const paginatedTickets = filteredTickets.slice(offset, offset + limit);
   const totalCount = filteredTickets.length;
 
-  // Colors & mappings
-  const priorityColors: Record<string, string> = {
-    'Low': 'badge-slate',
-    'Medium': 'badge-amber',
-    'High': 'badge-rose',
-    'Critical': 'badge-rose animate-pulse'
-  };
-
-  const statusColors: Record<string, string> = {
-    'Open': 'badge-rose',
-    'In Progress': 'badge-blue',
-    'Pending Vendor': 'badge-amber',
-    'Resolved': 'badge-emerald',
-    'Closed': 'badge-slate'
-  };
-
-  const slaColors: Record<string, string> = {
-    'Achieved': 'badge-emerald',
-    'Breached': 'badge-rose'
-  };
-
-  const impactColors: Record<string, string> = {
-    'Sistem Down': 'badge-rose',
-    'Sistem Lambat': 'badge-amber',
-    'Beroperasi Normal': 'badge-emerald'
-  };
+  // Colors (imported from ticketUtils)
 
   // Extract unique categories & locations for dropdown filter chips
   const uniqueCategories = Array.from(new Set(allTickets.map(t => t.category))).filter(Boolean);
@@ -616,9 +518,9 @@ export default function TicketsListPage() {
 
       {/* 4. Search & Filter Area */}
       <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           {/* Search box */}
-          <div className="relative flex items-center flex-1 max-w-xl">
+          <div className="relative flex items-center flex-1">
             <Search className="absolute left-4 w-4 h-4 text-text-3" />
             <input
               type="text"
@@ -630,7 +532,7 @@ export default function TicketsListPage() {
           </div>
 
           {/* Quick operations */}
-          <div className="flex items-center gap-2 self-end sm:self-auto">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={fetchTicketsData}
@@ -649,6 +551,13 @@ export default function TicketsListPage() {
               className="btn border border-border bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 py-2.5 px-4 text-xs flex items-center gap-1.5 rounded-xl font-bold cursor-pointer text-slate-700 dark:text-slate-200 shadow-sm shrink-0"
             >
               <Filter size={14} className="text-blue" /> Filter
+            </button>
+            <button
+              onClick={exportCSV}
+              title={`Export ${filteredTickets.length} tiket ke CSV`}
+              className="btn border border-border bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 py-2.5 px-4 text-xs flex items-center gap-1.5 rounded-xl font-bold cursor-pointer text-slate-700 dark:text-slate-200 shadow-sm shrink-0"
+            >
+              <Download size={14} className="text-emerald" /> Export
             </button>
           </div>
         </div>
@@ -813,7 +722,7 @@ export default function TicketsListPage() {
             paginatedTickets.map(t => {
               const isSelectedRow = selectedIds.has(t.id);
               const isStarredRow = starredTickets.has(t.id);
-              const initials = getInitials(t.reporterName);
+              const initials = getTicketInitials(t.reporterName);
               const avatarColor = getAvatarBgColor(t.reporterName);
               const isFinished = t.status === 'Resolved' || t.status === 'Closed';
 
@@ -886,12 +795,12 @@ export default function TicketsListPage() {
 
                   {/* Priority badge */}
                   <div>
-                    <Badge label={t.priority} colorClass={priorityColors[t.priority]} />
+                    <Badge label={t.priority} colorClass={PRIORITY_COLORS[t.priority]} />
                   </div>
 
                   {/* Status badge */}
                   <div>
-                    <Badge label={t.status} colorClass={statusColors[t.status]} />
+                    <Badge label={t.status} colorClass={STATUS_COLORS[t.status]} />
                   </div>
 
                   {/* SLA progress circle */}
@@ -1070,174 +979,30 @@ export default function TicketsListPage() {
         </div>
       </div>
 
-      {/* Edit ticket Detail Modal (High-fidelity drawer) */}
+      {/* Edit ticket Detail Modal */}
       {selectedTicket && (
-        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) closeDetail(); }}>
-          <div className="modal-container modal-md max-w-lg">
-            <div className="modal-header">
-              <div>
-                <span className="modal-title">Detail Tiket IT Helpdesk</span>
-                <div className="text-[10px] font-mono text-text-3 mt-0.5">{selectedTicket.id}</div>
-              </div>
-              <button onClick={closeDetail} className="btn-icon cursor-pointer" title="Tutup">
-                <X size={15} />
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateSubmit} className="modal-body space-y-4">
-              <FormError msg={saveError} />
-
-              <div className="bg-surface-2 dark:bg-slate-800/50 rounded-xl p-4 border border-border space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-text-2 font-semibold">Pelapor</span>
-                  <span className="text-text font-bold">{selectedTicket.reporterName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-2 font-semibold">Ticket Source</span>
-                  <span className="text-text font-medium">{selectedTicket.ticketSource}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-2 font-semibold">Waktu Lapor</span>
-                  <span className="text-text font-medium">{selectedTicket.ticketDate} {selectedTicket.ticketTime}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-2 font-semibold">Lokasi</span>
-                  <span className="text-text font-medium">{selectedTicket.location}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-2 font-semibold">Kategori</span>
-                  <span className="text-text font-medium">{selectedTicket.category}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-2 font-semibold">Prioritas</span>
-                  <span className="text-text"><Badge label={selectedTicket.priority} colorClass={priorityColors[selectedTicket.priority]} /></span>
-                </div>
-                
-                <div className="pt-2 border-t border-border mt-2">
-                  <div className="text-[10px] font-bold text-text-3 uppercase tracking-wider mb-1">Judul Masalah</div>
-                  <p className="font-bold text-text leading-relaxed">{selectedTicket.issueTitle}</p>
-                </div>
-                <div className="pt-2 border-t border-border mt-2">
-                  <div className="text-[10px] font-bold text-text-3 uppercase tracking-wider mb-1">Deskripsi Gangguan</div>
-                  <p className="text-text-2 leading-relaxed whitespace-pre-wrap">{selectedTicket.description}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">Status Tiket</label>
-                  <select
-                    title="Status"
-                    className="input-premium font-bold cursor-pointer"
-                    value={editStatus}
-                    onChange={e => handleStatusChange(e.target.value)}
-                  >
-                    <option value="Open">Open</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Pending Vendor">Pending Vendor</option>
-                    <option value="Resolved">Resolved</option>
-                    <option value="Closed">Closed</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="form-label">Status SLA</label>
-                  <select
-                    title="SLA"
-                    className="input-premium font-bold cursor-pointer"
-                    value={editSla}
-                    onChange={e => setEditSla(e.target.value)}
-                  >
-                    <option value="">-- Belum --</option>
-                    <option value="Achieved">Achieved</option>
-                    <option value="Breached">Breached</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">Tgl Respon Awal</label>
-                  <DatePickerPremium
-                    value={editResponseDate}
-                    onChange={val => setEditResponseDate(val)}
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Jam Respon Awal</label>
-                  <input
-                    type="time"
-                    title="Response Time"
-                    className="input-premium text-xs"
-                    value={editResponseTime}
-                    onChange={e => setEditResponseTime(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">Tgl Selesai</label>
-                  <DatePickerPremium
-                    value={editResolvedDate}
-                    onChange={val => setEditResolvedDate(val)}
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Jam Selesai</label>
-                  <input
-                    type="time"
-                    title="Resolved Time"
-                    className="input-premium text-xs"
-                    value={editResolvedTime}
-                    onChange={e => setEditResolvedTime(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="form-label">Dampak Kestabilan & Ketersediaan</label>
-                <select
-                  title="Dampak"
-                  className="input-premium font-bold cursor-pointer"
-                  value={editImpact}
-                  onChange={e => setEditImpact(e.target.value)}
-                >
-                  <option value="">-- Pilih Dampak --</option>
-                  {impacts.map(i => (
-                    <option key={i.id} value={i.value}>{i.value}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                <button
-                  type="button"
-                  onClick={closeDetail}
-                  className="btn cursor-pointer"
-                  disabled={saving}
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary cursor-pointer"
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 size={15} className="animate-spin" />
-                      Menyimpan...
-                    </>
-                  ) : (
-                    <>
-                      <Save size={15} /> Simpan Perubahan
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <TicketDetailModal
+          ticket={selectedTicket}
+          editStatus={editStatus}
+          editSla={editSla}
+          editResponseDate={editResponseDate}
+          editResponseTime={editResponseTime}
+          editResolvedDate={editResolvedDate}
+          editResolvedTime={editResolvedTime}
+          editImpact={editImpact}
+          saving={saving}
+          saveError={saveError}
+          impacts={impacts}
+          onStatusChange={handleStatusChange}
+          onSlaChange={setEditSla}
+          onResponseDate={setEditResponseDate}
+          onResponseTime={setEditResponseTime}
+          onResolvedDate={setEditResolvedDate}
+          onResolvedTime={setEditResolvedTime}
+          onImpactChange={setEditImpact}
+          onSubmit={handleUpdateSubmit}
+          onClose={closeDetail}
+        />
       )}
     </div>
   );

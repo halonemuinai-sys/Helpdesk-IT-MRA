@@ -16,10 +16,11 @@ export const ROLE_HOME: Record<UserRole, string> = {
 
 // Route prefix → roles allowed
 export const ROUTE_RULES: { prefix: string; allowed: UserRole[] }[] = [
-  { prefix: '/reports',   allowed: ['admin'] },
-  { prefix: '/tickets',   allowed: ['admin', 'support'] },
-  { prefix: '/input',     allowed: ['admin', 'support', 'staff'] },
-  { prefix: '/master-data',allowed: ['admin'] },
+  { prefix: '/reports',     allowed: ['admin'] },
+  { prefix: '/tickets',     allowed: ['admin', 'support'] },
+  { prefix: '/input',       allowed: ['admin', 'support', 'staff'] },
+  { prefix: '/master-data', allowed: ['admin'] },
+  { prefix: '/employees',   allowed: ['admin'] },
 ];
 
 // Sidebar group label → roles that can see it

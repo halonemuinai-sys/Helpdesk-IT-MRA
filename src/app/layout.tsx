@@ -5,18 +5,13 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
-  LayoutDashboard, LogOut, Bell, Database, Calendar,
+  LayoutDashboard, LogOut, Bell, Database, Calendar, Users,
   Star, CheckCircle2, AlertTriangle, Clock, List,
   ChevronRight, ChevronLeft, Plus, Headset, Menu
 } from 'lucide-react';
 import { ThemeProvider } from '@/lib/theme';
 import { getInitials, toRole, type UserRole } from '@/lib/role';
 
-function getCookie(name: string): string {
-  if (typeof document === 'undefined') return '';
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : '';
-}
 
 interface SidebarCounts {
   all: number;
@@ -48,9 +43,17 @@ function ShellInner({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
+  // Ambil user info dari JWT via /api/me (bukan dari cookie yang bisa dimanipulasi)
   useEffect(() => {
-    setRole(toRole(getCookie('user_role') || 'support'));
-    setFullName(getCookie('user_full_name') || 'Budi Santoso');
+    fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d) {
+          setRole(toRole(d.role));
+          setFullName(d.fullName || '');
+        }
+      })
+      .catch(() => {});
   }, [pathname]);
 
   // Close mobile sidebar on navigate
@@ -58,30 +61,36 @@ function ShellInner({ children }: { children: React.ReactNode }) {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Fetch ticket summary for sidebar badge counts & SLA indicator
+  // Fetch + poll ticket summary setiap 60 detik untuk live badge count
   useEffect(() => {
-    fetch('/api/tickets?limit=10000')
-      .then(r => r.json())
-      .then(d => {
-        const list: { id: string; status: string; slaStatus: string }[] = d.data || [];
-        let starredSet = new Set<string>();
-        try {
-          const s = localStorage.getItem('mra_starred_tickets');
-          if (s) starredSet = new Set(JSON.parse(s));
-        } catch {}
-        const sA = list.filter(t => t.slaStatus === 'Achieved').length;
-        const sB = list.filter(t => t.slaStatus === 'Breached').length;
-        const sT = sA + sB;
-        setCounts({
-          all: list.length,
-          starred: list.filter(t => starredSet.has(t.id)).length,
-          active: list.filter(t => ['Open', 'In Progress', 'Pending Vendor'].includes(t.status)).length,
-          completed: list.filter(t => ['Resolved', 'Closed'].includes(t.status)).length,
-          breached: sB,
-          slaRate: sT > 0 ? Math.round((sA / sT) * 100) : 0,
-        });
-      })
-      .catch(() => {});
+    const loadCounts = () => {
+      fetch('/api/tickets?limit=10000')
+        .then(r => r.json())
+        .then(d => {
+          const list: { id: string; status: string; slaStatus: string }[] = d.data || [];
+          let starredSet = new Set<string>();
+          try {
+            const s = localStorage.getItem('mra_starred_tickets');
+            if (s) starredSet = new Set(JSON.parse(s));
+          } catch {}
+          const sA = list.filter(t => t.slaStatus === 'Achieved').length;
+          const sB = list.filter(t => t.slaStatus === 'Breached').length;
+          const sT = sA + sB;
+          setCounts({
+            all: list.length,
+            starred: list.filter(t => starredSet.has(t.id)).length,
+            active: list.filter(t => ['Open', 'In Progress', 'Pending Vendor'].includes(t.status)).length,
+            completed: list.filter(t => ['Resolved', 'Closed'].includes(t.status)).length,
+            breached: sB,
+            slaRate: sT > 0 ? Math.round((sA / sT) * 100) : 0,
+          });
+        })
+        .catch(() => {});
+    };
+
+    loadCounts();
+    const interval = setInterval(loadCounts, 60_000);
+    return () => clearInterval(interval);
   }, [pathname]);
 
   const initials = fullName ? getInitials(fullName) : 'IT';
@@ -97,9 +106,8 @@ function ShellInner({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleLogout = () => {
-    document.cookie = 'user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    document.cookie = 'user_full_name=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  const handleLogout = async () => {
+    await fetch('/api/auth', { method: 'DELETE' });
     router.push('/login');
   };
 
@@ -286,6 +294,30 @@ function ShellInner({ children }: { children: React.ReactNode }) {
             {isCollapsed && <div className="flyout-label">Kalender</div>}
           </div>
 
+          {/* Data Karyawan (admin only) */}
+          {role === 'admin' && (
+            <div
+              className="sidebar-item-wrap stagger-item"
+              style={{ '--stagger-delay': staggerIndex++ } as React.CSSProperties}
+            >
+              <Link href="/employees" className="block no-underline">
+                <div className={`sidebar-item${pathname === '/employees' ? ' active' : ''}`}>
+                  <div className="relative flex items-center">
+                    <Users
+                      size={16}
+                      className={`shrink-0 ${pathname === '/employees' ? 'text-blue' : 'text-text-3'}`}
+                    />
+                  </div>
+                  <span className="sidebar-label flex-1">Data Karyawan</span>
+                  {pathname === '/employees' && (
+                    <ChevronRight size={13} className="active-chevron text-blue shrink-0" />
+                  )}
+                </div>
+              </Link>
+              {isCollapsed && <div className="flyout-label">Data Karyawan</div>}
+            </div>
+          )}
+
           {/* Kelola & Pengaturan (admin only) */}
           {role === 'admin' && (
             <div
@@ -360,13 +392,17 @@ function ShellInner({ children }: { children: React.ReactNode }) {
               </button>
             </Link>
 
-            {/* Notification Bell */}
-            <div className="relative p-1.5 rounded-full hover:bg-surface-2 transition-colors cursor-pointer text-text-2">
-              <Bell size={17} />
-              <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-rose text-white text-[7px] font-black rounded-full flex items-center justify-center border-2 border-white">
-                2
-              </span>
-            </div>
+            {/* Notification Bell — live SLA Breached count */}
+            <Link href="/tickets?filter=breached" className="no-underline">
+              <div className="relative p-1.5 rounded-full hover:bg-surface-2 transition-colors cursor-pointer text-text-2" title={counts.breached > 0 ? `${counts.breached} tiket SLA Breached` : 'Tidak ada tiket breached'}>
+                <Bell size={17} className={counts.breached > 0 ? 'text-rose' : ''} />
+                {counts.breached > 0 && (
+                  <span className="absolute top-0 right-0 min-w-[14px] h-3.5 bg-rose text-white text-[7px] font-black rounded-full flex items-center justify-center border-2 border-white px-0.5">
+                    {counts.breached > 99 ? '99+' : counts.breached}
+                  </span>
+                )}
+              </div>
+            </Link>
 
             {/* User Profile */}
             <div className="relative group">

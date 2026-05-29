@@ -1,18 +1,41 @@
-import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { listEmployees, listEmployeesPaginated, listCompanyNames, createEmployee } from '@/server/services/employee.service';
+import { validateEmployee } from '@/server/validators/employee.validator';
+import * as R from '@/server/lib/response';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const res = await query(
-      `SELECT e.id, e.name, e.department, e.email, e.location, c.name as company_name 
-       FROM m_employee e
-       LEFT JOIN m_company c ON e.company_id = c.id
-       WHERE e.status = 'Active'
-       ORDER BY e.name ASC`
-    );
-    return NextResponse.json({ data: res.rows });
-  } catch (error) {
-    console.error('[employees] GET error:', error);
-    return NextResponse.json({ error: 'Failed to fetch employees' }, { status: 500 });
+    const { searchParams } = new URL(request.url);
+
+    if (searchParams.get('mode') === 'paginated') {
+      const [result, companies] = await Promise.all([
+        listEmployeesPaginated({
+          search:  searchParams.get('search')  || '',
+          company: searchParams.get('company') || '',
+          limit:   parseInt(searchParams.get('limit')  || '50'),
+          offset:  parseInt(searchParams.get('offset') || '0'),
+        }),
+        listCompanyNames(),
+      ]);
+      return R.ok({ data: result.data, total: result.total, companies });
+    }
+
+    const data = await listEmployees();
+    return R.ok({ data });
+  } catch {
+    return R.serverError('Failed to fetch employees', '[employees] GET');
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body   = await request.json();
+    const parsed = validateEmployee(body);
+    if ('error' in parsed) return R.badRequest(parsed.error);
+
+    const data = await createEmployee(parsed.data);
+    return R.created({ data });
+  } catch (e: any) {
+    if (e.code === '23505') return R.conflict('Email karyawan sudah terdaftar');
+    return R.serverError('Failed to create employee', '[employees] POST');
   }
 }

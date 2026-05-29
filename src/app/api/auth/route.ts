@@ -1,53 +1,48 @@
-import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { login }          from '@/server/services/auth.service';
+import { validateLogin }   from '@/server/validators/auth.validator';
+import { signSession, COOKIE_NAME, EXPIRES_IN } from '@/lib/jwt';
+import * as R from '@/server/lib/response';
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const body   = await request.json();
+    const parsed = validateLogin(body);
+    if ('error' in parsed) return R.badRequest(parsed.error);
 
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
-    }
+    const user = await login(parsed.data.email, parsed.data.password);
 
-    const trimmedEmail = email.trim().toLowerCase();
-    
-    // Direct check of m_user table (plain text password check for Laragon local dev)
-    const res = await query(
-      `SELECT id, full_name, email, role, password FROM m_user WHERE LOWER(email) = $1 AND is_active = TRUE LIMIT 1`,
-      [trimmedEmail]
-    );
-
-    if (res.rows.length === 0) {
-      return NextResponse.json({ error: 'User tidak ditemukan atau tidak aktif' }, { status: 401 });
-    }
-
-    const user = res.rows[0];
-
-    // Simple plain text password check for local dev
-    // If you need hashing in production, you can use bcrypt/argon2 here.
-    if (user.password !== password) {
-      return NextResponse.json({ error: 'Password salah' }, { status: 401 });
-    }
-
-    // Prepare response
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        fullName: user.full_name,
-        email: user.email,
-        role: user.role
-      }
+    // Sign JWT
+    const token = await signSession({
+      id:    user.id,
+      name:  user.fullName,
+      email: user.email,
+      role:  user.role,
     });
 
-    // Save cookies (non-httpOnly so client shell can read the role for menus)
-    const maxAge = 60 * 60 * 24 * 7; // 7 days
-    response.cookies.set('user_role', user.role, { path: '/', maxAge, sameSite: 'lax' });
-    response.cookies.set('user_full_name', user.full_name, { path: '/', maxAge, sameSite: 'lax' });
+    const response = R.ok({ success: true, user: { id: user.id, fullName: user.fullName, email: user.email, role: user.role } });
+
+    // httpOnly cookie — tidak bisa dibaca JS browser
+    response.cookies.set(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge:   EXPIRES_IN,
+      path:     '/',
+    });
+
+    // Hapus cookie lama yang tidak aman
+    response.cookies.delete('user_role');
+    response.cookies.delete('user_full_name');
 
     return response;
-  } catch (error) {
-    console.error('[auth] Login error:', error);
-    return NextResponse.json({ error: 'Terjadi kesalahan sistem' }, { status: 500 });
+  } catch (e: any) {
+    if (e.code === 'UNAUTHORIZED') return R.unauthorized(e.message);
+    return R.serverError('Terjadi kesalahan sistem', '[auth] POST');
   }
+}
+
+export async function DELETE() {
+  const response = R.ok({ success: true });
+  response.cookies.delete(COOKIE_NAME);
+  return response;
 }

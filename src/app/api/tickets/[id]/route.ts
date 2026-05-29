@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { updateTicket, deleteTicket } from '@/server/services/ticket.service';
+import { validateUpdateTicket } from '@/server/validators/ticket.validator';
+import * as R from '@/server/lib/response';
 
 export async function PUT(
   request: Request,
@@ -7,78 +8,17 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    const {
-      status, slaStatus, responseDate, responseTime,
-      resolvedDate, resolvedTime, impactLevel
-    } = body;
+    if (!id) return R.badRequest('Ticket ID is required');
 
-    if (!id) {
-      return NextResponse.json({ error: 'Ticket ID is required' }, { status: 400 });
-    }
+    const body   = await request.json();
+    const parsed = validateUpdateTicket(body);
+    if ('error' in parsed) return R.badRequest(parsed.error);
 
-    const checkRes = await query(`SELECT * FROM helpdesk_tickets WHERE id = $1`, [id]);
-    if (checkRes.rows.length === 0) {
-      return NextResponse.json({ error: 'Tiket tidak ditemukan' }, { status: 404 });
-    }
-
-    const now = new Date();
-    const currentDateStr = now.toISOString().split('T')[0];
-    const hh = String(now.getHours()).padStart(2, '0');
-    const mm = String(now.getMinutes()).padStart(2, '0');
-    const currentTimeStr = `${hh}:${mm}`;
-
-    let finalStatus = status;
-    let finalSlaStatus = slaStatus;
-    let finalResponseDate = responseDate;
-    let finalResponseTime = responseTime;
-    let finalResolvedDate = resolvedDate;
-    let finalResolvedTime = resolvedTime;
-    const finalImpactLevel = impactLevel;
-
-    // Auto-fill response date/time if status is In Progress
-    if (status === 'In Progress' && (!responseDate || responseDate === '')) {
-      finalResponseDate = currentDateStr;
-      finalResponseTime = currentTimeStr;
-    }
-
-    // Auto-fill resolved date/time if status is Resolved or Closed
-    if ((status === 'Resolved' || status === 'Closed') && (!resolvedDate || resolvedDate === '')) {
-      finalResolvedDate = currentDateStr;
-      finalResolvedTime = currentTimeStr;
-    }
-
-    // Auto calculate SLA if status resolved and SLA empty
-    if ((status === 'Resolved' || status === 'Closed') && (!slaStatus || slaStatus === '')) {
-      // Basic fallback: if it's high priority, SLA should be fast (e.g. within 4 hours).
-      // If we don't have enough data, default to Achieved or let it be.
-      // Let's keep it as is, or we can check the time difference.
-      finalSlaStatus = 'Achieved'; // Default fallback
-    }
-
-    await query(
-      `UPDATE helpdesk_tickets SET
-        status = $1,
-        sla_status = $2,
-        response_date = $3,
-        response_time = $4,
-        resolved_date = $5,
-        resolved_time = $6,
-        impact_level = $7,
-        updated_at = NOW()
-       WHERE id = $8`,
-      [
-        finalStatus, finalSlaStatus || null,
-        finalResponseDate || null, finalResponseTime || null,
-        finalResolvedDate || null, finalResolvedTime || null,
-        finalImpactLevel || null, id
-      ]
-    );
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('[tickets] PUT error:', error);
-    return NextResponse.json({ error: 'Failed to update ticket' }, { status: 500 });
+    await updateTicket(id, parsed.data);
+    return R.ok({ success: true });
+  } catch (e: any) {
+    if (e.code === 'NOT_FOUND') return R.notFound(e.message);
+    return R.serverError('Failed to update ticket', '[tickets] PUT');
   }
 }
 
@@ -88,14 +28,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    if (!id) {
-      return NextResponse.json({ error: 'Ticket ID is required' }, { status: 400 });
-    }
+    if (!id) return R.badRequest('Ticket ID is required');
 
-    await query(`DELETE FROM helpdesk_tickets WHERE id = $1`, [id]);
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('[tickets] DELETE error:', error);
-    return NextResponse.json({ error: 'Failed to delete ticket' }, { status: 500 });
+    await deleteTicket(id);
+    return R.ok({ success: true });
+  } catch (e: any) {
+    return R.serverError('Failed to delete ticket', '[tickets] DELETE');
   }
 }

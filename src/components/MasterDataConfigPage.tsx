@@ -5,9 +5,7 @@ import { Database, Plus, Trash2, Loader2 } from 'lucide-react';
 import { Badge, ModalShell, FF, FormError, TableShell } from '@/components/PageShared';
 
 const masterTables = [
-  { id: 'm_company', label: 'Perusahaan (Company)' },
-  { id: 'm_division', label: 'Divisi (Division)' },
-  { id: 'm_location', label: 'Lokasi (Location)' },
+  { id: 'm_company',     label: 'Perusahaan (Company)'        },
   { id: 'm_master_data', label: 'Referensi Dropdown (HD_Data)' },
 ];
 
@@ -20,9 +18,6 @@ export default function MasterDataConfigPage() {
   const [showModal, setShowModal] = useState(false);
   const [formName, setFormName] = useState('');
   const [formCategory, setFormCategory] = useState('HD_Kategori');
-  const [formBuilding, setFormBuilding] = useState('');
-  const [formFloor, setFormFloor] = useState('');
-  const [formRoom, setFormRoom] = useState('');
   
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -54,9 +49,6 @@ export default function MasterDataConfigPage() {
   const handleOpenModal = () => {
     setErrorMsg('');
     setFormName('');
-    setFormBuilding('');
-    setFormFloor('');
-    setFormRoom('');
     setShowModal(true);
   };
 
@@ -72,11 +64,6 @@ export default function MasterDataConfigPage() {
         if (!formName.trim()) throw new Error('Nilai tidak boleh kosong');
         body.category = formCategory;
         body.value = formName.trim();
-      } else if (activeTable === 'm_location') {
-        if (!formBuilding.trim()) throw new Error('Gedung tidak boleh kosong');
-        body.building = formBuilding.trim();
-        body.floor = formFloor.trim();
-        body.room = formRoom.trim();
       } else {
         if (!formName.trim()) throw new Error('Nama tidak boleh kosong');
         body.name = formName.trim();
@@ -167,15 +154,13 @@ export default function MasterDataConfigPage() {
               </button>
             </div>
 
-            <TableShell 
+            <TableShell
               headers={
                 activeTable === 'm_master_data'
                   ? [{ label: 'ID' }, { label: 'KATEGORI' }, { label: 'NILAI (VALUE)' }, { label: 'AKSI', right: true }]
-                  : activeTable === 'm_location'
-                  ? [{ label: 'ID' }, { label: 'LOKASI LENGKAP' }, { label: 'AKSI', right: true }]
                   : [{ label: 'ID' }, { label: 'NAMA' }, { label: 'AKSI', right: true }]
-              } 
-              loading={loading} 
+              }
+              loading={loading}
               colSpan={activeTable === 'm_master_data' ? 4 : 3}
             >
               {data.length === 0 && !loading ? (
@@ -188,14 +173,12 @@ export default function MasterDataConfigPage() {
                 data.map(item => (
                   <tr key={item.id} className="hover:bg-surface-2 transition-colors">
                     <td className="w-20"><Badge label={`#${item.id}`} /></td>
-                    
+
                     {activeTable === 'm_master_data' ? (
                       <>
                         <td className="font-semibold text-text-2">{item.category}</td>
                         <td className="font-bold text-text">{item.value}</td>
                       </>
-                    ) : activeTable === 'm_location' ? (
-                      <td className="font-bold text-text">{item.full_name}</td>
                     ) : (
                       <td className="font-bold text-text">{item.name}</td>
                     )}
@@ -239,50 +222,17 @@ export default function MasterDataConfigPage() {
               </FF>
             )}
 
-            {activeTable === 'm_location' ? (
-              <>
-                <FF label="Gedung / Unit" required>
-                  <input
-                    type="text"
-                    className="input-premium"
-                    value={formBuilding}
-                    onChange={e => setFormBuilding(e.target.value)}
-                    placeholder="E.g. Head Office MRA Retail"
-                    required
-                  />
-                </FF>
-                <FF label="Lantai">
-                  <input
-                    type="text"
-                    className="input-premium"
-                    value={formFloor}
-                    onChange={e => setFormFloor(e.target.value)}
-                    placeholder="E.g. Lantai 3"
-                  />
-                </FF>
-                <FF label="Ruang / Area">
-                  <input
-                    type="text"
-                    className="input-premium"
-                    value={formRoom}
-                    onChange={e => setFormRoom(e.target.value)}
-                    placeholder="E.g. IT Room"
-                  />
-                </FF>
-              </>
-            ) : (
-              <FF label={activeTable === 'm_master_data' ? 'Nilai (Value)' : 'Nama'} required>
-                <input
-                  type="text"
-                  className="input-premium"
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
-                  placeholder="Masukkan data..."
-                  required
-                  autoFocus
-                />
-              </FF>
-            )}
+            <FF label={activeTable === 'm_master_data' ? 'Nilai (Value)' : 'Nama'} required>
+              <input
+                type="text"
+                className="input-premium"
+                value={formName}
+                onChange={e => setFormName(e.target.value)}
+                placeholder="Masukkan data..."
+                required
+                autoFocus
+              />
+            </FF>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-border mt-2">
               <button type="button" className="btn text-xs py-2" onClick={() => setShowModal(false)}>Batal</button>
